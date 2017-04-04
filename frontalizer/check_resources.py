@@ -35,12 +35,11 @@ def extract_bz2(fpath):
     new_file.close()
     print "Done!"
 
-
-def check_dlib_landmark_weights():
-    dlib_models_folder = "frontalizer/dlib_models"
-    if(not os.path.isdir(dlib_models_folder)):
-        os.mkdir(dlib_models_folder)
-    if(not os.path.isfile(dlib_models_folder+"/shape_predictor_68_face_landmarks.dat")):
-        if(not os.path.isfile(dlib_models_folder+"/shape_predictor_68_face_landmarks.dat.bz2")):
-            download_file(dlib_facial_landmark_model_url, dlib_models_folder)
-        extract_bz2(dlib_models_folder+"/shape_predictor_68_face_landmarks.dat.bz2")
+def check_dlib_landmark_weights(path):
+    #dlib_models_folder = "frontalizer/dlib_models"
+    if(not os.path.isdir(path)):
+        os.mkdir(path)
+    if(not os.path.isfile(path+"/shape_predictor_68_face_landmarks.dat")):
+        if(not os.path.isfile(path+"/shape_predictor_68_face_landmarks.dat.bz2")):
+            download_file(dlib_facial_landmark_model_url, path)
+        extract_bz2(path+"/shape_predictor_68_face_landmarks.dat.bz2")

@@ -17,7 +17,7 @@ class ReaderCKplus():
         if os.path.exists(self.path+fname):
             return cPickle.load(open(self.path+fname, 'rb'))
 
-        dt = {'images':[], 'landmarks':[], 'emos':[], 'subject':[], 'sequence':[]}
+        dt = {'images':[], 'landmarks':[], 'emos':[], 'subjects':[], 'sequences':[]}
 
         # Get directory structure
         subjects = sorted([f for f in os.listdir(self.path_im)])
@@ -33,13 +33,13 @@ class ReaderCKplus():
                 lm_seq = np.asarray(read_folder(self.path_lm+rpath), dtype=np.float16)[:,:,::-1]
 
                 # Extract face and resize
-                S = map(list, zip(*[extract(i,l,1,224) for i,l in zip(im_seq, lm_seq)]))
+                S = map(list, zip(*[extract(i,l,1.05,224) for i,l in zip(im_seq, lm_seq)]))
 
-                dt['images'].append(S[0])
-                dt['landmarks'].append(S[1])
+                dt['images'].append(np.asarray(S[0], dtype=np.uint8))
+                dt['landmarks'].append(np.asarray(S[1], dtype=np.float16))
                 dt['emos'].append(read_folder(self.path_emo+rpath))
-                dt['subject'].append(subject)
-                dt['sequence'].append(sequence)
+                dt['subjects'].append(subject)
+                dt['sequences'].append(sequence)
 
         cPickle.dump(dt, open(self.path+fname, 'wb'), cPickle.HIGHEST_PROTOCOL)
 
@@ -99,7 +99,7 @@ class ReaderPain():
         if os.path.exists(self.path+fname):
             return cPickle.load(open(self.path+fname, 'rb'))
 
-        dt = {'images':[], 'landmarks':[], 'aus':[], 'subject':[], 'sequence':[]}
+        dt = {'images':[], 'landmarks':[], 'aus':[], 'subjects':[], 'sequences':[]}
 
         # Get directory structure
         subjects = sorted([f for f in os.listdir(self.path_im)])
@@ -157,7 +157,7 @@ class ReaderDisfa():
         if os.path.exists(self.path+fname):
             return cPickle.load(open(self.path+fname, 'rb'))
 
-        dt = {'images':[], 'landmarks':[], 'aus':[], 'subject':[]}
+        dt = {'images':[], 'landmarks':[], 'aus':[], 'subjects':[]}
 
         subjects = sorted([f for f in os.listdir(self.path_au)])
 
