@@ -1,3 +1,5 @@
+__author__ = 'cipriancorneanu'
+
 from frontalizer.frontalize import frontalize
 from frontalizer.frontalize import  ThreeD_Model
 import frontalizer.facial_feature_detector as feature_detection
@@ -6,21 +8,21 @@ import frontalizer.check_resources as check
 
 import scipy.io as io
 from scipy.misc import imresize
-from scipy.misc import imread
 import cv2
 import numpy as np
 import os
 import matplotlib.pyplot as plt
-import cPickle
 import time
-import getopt
-import sys
 
-def vanilla_align(face, geom):
-    k_pts = [range(36,41), range(42, 47), range(48,67)]
 
-    ref_t = np.float32(np.asarray([[110, 100], [210, 100], [162, 200]]))
-    act_t = np.asarray([np.mean(geom[k,:], axis=0) for k in k_pts])
+def affine_align(face, geom, kpts=(range(36,41), range(42, 47), range(48,67))):
+    '''
+    Perform alignment based on affine transformation computed using three points, left eye, right eye, mouth.
+    The landmarks corresponding to the three parts of the face have to be predefined.
+    '''
+
+    ref_t = np.float32(np.asarray([[110, 100], [210, 100], [162, 200]])) # hard-coded. To change!
+    act_t = np.asarray([np.mean(geom[k,:], axis=0) for k in kpts])
 
     T = cv2.getAffineTransform(act_t, ref_t)
 
@@ -29,7 +31,12 @@ def vanilla_align(face, geom):
 
     return aface, ageom
 
-def align(face, model3D):
+def sym_align(face, model3D):
+    '''
+    Perform alignment based on Hassner, Tal, et al. "Effective face frontalization in unconstrained images."
+    Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition. 2015.
+    Code forked from original repo: https://github.com/dougsouza/face-frontalization
+    '''
     h, w = face.shape[0], face.shape[1]
     # Estimate facial geometry of input face
     geom = np.squeeze(feature_detection.get_landmarks(face))
@@ -50,7 +57,7 @@ def align(face, model3D):
 
         if not frontalized:
             # Rely on affine alignment only
-            face, geom = vanilla_align(face, geom)
+            face, geom = affine_align(face, geom)
         else:
             # Estimate facial geometry of frontalized face
             geom = np.squeeze(feature_detection.get_landmarks(frontal_sym))
@@ -74,6 +81,9 @@ def align(face, model3D):
     return aface, ageom
 
 def batch_align(faces, debug=False):
+    '''
+    Align/frontalize batch of images
+    '''
     check.check_dlib_landmark_weights()
 
     # Load detections performed by dlib library on 3D model and reference image
@@ -90,7 +100,7 @@ def batch_align(faces, debug=False):
         img = np.squeeze(faces[i,...])
 
         # Align face and geometry
-        aface, ageom = align(img, model3D)
+        aface, ageom = sym_align(img, model3D)
 
         afaces[i,...], ageoms[i,...] = np.squeeze(aface[:,:,0]), ageom
 
@@ -103,30 +113,3 @@ def batch_align(faces, debug=False):
             plt.clf()
 
     return afaces, ageoms
-
-def run_align(argv):
-    opts, args = getopt.getopt(argv, '')
-    (ipath, opath, start, stop) = \
-        (
-            args[0], args[1], int(args[2]), int(args[3])
-        )
-
-    print (ipath, opath, start, stop)
-
-    for person in range(start, stop):
-        for emo in range(0,12):
-            fname = 'femo_extracted_faces_' + str(person) + '_' + str(emo) + '.pkl'
-
-            if os.path.exists(ipath+fname):
-                print 'Aligning batch {}'.format(fname)
-                faces =  cPickle.load(open(ipath+fname, 'rb'))
-                afaces, ageoms = batch_align(faces, True)
-
-                cPickle.dump(
-                    {'faces':afaces, 'geoms': ageoms},
-                    open(opath+'femo_aligned_faces_' + str(person) + '_' + str(emo)+'.pkl', 'wb'),
-                    cPickle.HIGHEST_PROTOCOL
-                )
-
-if __name__ == "__main__":
-    run_align(sys.argv[1:])
