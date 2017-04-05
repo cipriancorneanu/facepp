@@ -30,6 +30,8 @@ def read_mat(fname):
     return scipy.io.loadmat(fname)
 
 def read_avi(fname, mode='L'):
+    # TODO: Consider passing video reading to opencv as PyAV depends on ffmpeg
+
     container = av.open(fname)
     video = next(s for s in container.streams if s.type == b'video')
 

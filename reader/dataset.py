@@ -19,9 +19,9 @@ class ReaderFera2017():
 class ReaderCKplus():
     def __init__(self, path):
         self.path = path
-        self.path_im = path + 'Images/'
+        self.path_im = path + 'cohn-kanade-images/'
         self.path_lm = path + 'Landmarks/'
-        self.path_emo = path + 'Emotions/'
+        self.path_emo = path + 'Emotion/'
 
     def read(self, fname):
         if os.path.exists(self.path+fname):
@@ -40,16 +40,21 @@ class ReaderCKplus():
                 rpath = subject+'/'+sequence + '/'
 
                 im_seq = read_folder(self.path_im+rpath)
-                lm_seq = np.asarray(read_folder(self.path_lm+rpath), dtype=np.float16)[:,:,::-1]
 
-                # Extract face and resize
-                S = map(list, zip(*[extract(i,l,1.05,224) for i,l in zip(im_seq, lm_seq)]))
+                # Read and save if all corresponding info is available
+                if os.path.exists(self.path_lm+rpath) and os.path.exists(self.path_emo+rpath):
+                    lm_seq = np.asarray(read_folder(self.path_lm+rpath), dtype=np.float16)[:,:,::-1]
 
-                dt['images'].append(np.asarray(S[0], dtype=np.uint8))
-                dt['landmarks'].append(np.asarray(S[1], dtype=np.float16))
-                dt['emos'].append(read_folder(self.path_emo+rpath))
-                dt['subjects'].append(subject)
-                dt['sequences'].append(sequence)
+                    # Extract face and resize
+                    S = map(list, zip(*[extract(i,l,1.05,224) for i,l in zip(im_seq, lm_seq)]))
+
+                    dt['images'].append(np.asarray(S[0], dtype=np.uint8))
+                    dt['landmarks'].append(np.asarray(S[1], dtype=np.float16))
+                    dt['emos'].append(read_folder(self.path_emo+rpath))
+                    dt['subjects'].append(subject)
+                    dt['sequences'].append(sequence)
+                else:
+                    print 'Skip: Not all corresponding labels exists.'
 
         cPickle.dump(dt, open(self.path+fname, 'wb'), cPickle.HIGHEST_PROTOCOL)
 
