@@ -5,6 +5,16 @@ from extractor import *
 import os
 import cPickle
 
+class ReaderFera2017():
+    def __init__(self, path):
+        self.path = path
+        self.path_im = path + 'cohn-kanade-images/'
+        self.path_lm = path + 'Landmarks/'
+        self.path_emo = path + 'Emotion/'
+
+    def read(self, fname):
+        if os.path.exists(self.path+fname):
+            return cPickle.load(open(self.path+fname, 'rb'))
 
 class ReaderCKplus():
     def __init__(self, path):
@@ -68,8 +78,6 @@ class Reader300vw():
             return data
 
     def _read_partition(self, partition):
-        #treader = TextReader(3, -1)
-
         dt = {'images':[], 'landmarks':[], 'T':[], 'names': []}
 
         for d in partition[:2]:
