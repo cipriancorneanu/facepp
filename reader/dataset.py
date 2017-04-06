@@ -22,27 +22,28 @@ class ReaderFera2017():
 
         dt = {'images': [], 'emos':[], 'subjects':[], 'tasks':[], 'poses':[]}
 
-        subjects = [self.subjects(i) for i in np.random.randint(0, high=len(self.subjects), size=10)]
+        subjects = [self.subjects[i] for i in np.random.randint(0, high=len(self.subjects), size=10)]
         print 'List of selected subjects: {}'.format(subjects)
 
         # Get list of subjects
         for subject in subjects:
-            for task in self.tasks:
+            for task in self.tasks[:1]:
                 for pose in self.poses:
                     # TODO : generalize to all partitions
-                    fname = self.path + 'FERA2017_TR_' + subject + '_' + task + '_' + pose + '.mp4'
-                    print 'Reading file {}'.format(fname)
+                    vname = self.path + 'FERA17_TR_' + subject + '_' + task + '_' + pose + '.mp4'
+                    print 'Reading file {}'.format(vname)
 
                     # Read video
-                    frames = read_video(fname)
+                    if os.path.exists(vname):
+                        frames = read_video(vname, mode='L')
 
-                    # Save
-                    dt['images'].append(frames)
-                    #dt['landmarks'].append(np.asarray(S[1], dtype=np.float16))
-                    #dt['emos'].append(read_folder(self.path_emo+rpath))
-                    dt['subjects'].append(subject)
-                    dt['tasks'].append(task)
-                    dt['poses'].append(pose)
+                        # Save
+                        dt['images'].append(frames)
+                        #dt['landmarks'].append(np.asarray(S[1], dtype=np.float16))
+                        #dt['emos'].append(read_folder(self.path_emo+rpath))
+                        dt['subjects'].append(subject)
+                        dt['tasks'].append(task)
+                        dt['poses'].append(pose)
 
         cPickle.dump(dt, open(self.path+fname, 'wb'), cPickle.HIGHEST_PROTOCOL)
 
@@ -249,9 +250,9 @@ if __name__ == '__main__':
     path_server_disfa = '/home/corneanu/data/disfa/'
     path_ckplus = '/Users/cipriancorneanu/Research/data/ck/'
     path_fera2017 = '/Users/cipriancorneanu/Research/data/fera2017/train/'
+    path_fera2017_server = '/home/corneanu/data/fera2017/train/'
 
-
-    fera_ckp = ReaderFera2017(path_fera2017)
+    fera_ckp = ReaderFera2017(path_fera2017_server)
     dt = fera_ckp.read('fera2017_reduced.pkl')
 
     '''

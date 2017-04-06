@@ -49,7 +49,7 @@ def read_video(fname, colorspace='RGB'):
     vid = imageio.get_reader(fname, 'ffmpeg')
 
     # For the moment just read some frames to speedup
-    frames = np.asarray([np.asarray(vid.get_data(i)) for i in np.random.randint(0, high=len(vid), size=10)])
+    frames = np.asarray([np.asarray(vid.get_data(i)) for i in np.random.randint(0, high=len(vid), size=1)])
 
     if colorspace=='L':
         return np.asarray([skimage.color.rgb2grey(frame) for frame in frames])
