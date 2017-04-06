@@ -4,6 +4,7 @@ from reader import *
 from extractor import *
 import os
 import cPickle
+import re
 
 class ReaderFera2017():
     def __init__(self, path):
@@ -11,10 +12,43 @@ class ReaderFera2017():
         self.path_im = path + 'cohn-kanade-images/'
         self.path_lm = path + 'Landmarks/'
         self.path_emo = path + 'Emotion/'
+        self.subjects = self._get_subjects()
+        self.tasks = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8']
+        self.poses = [str(i) for i in range(1,10)]
 
     def read(self, fname):
         if os.path.exists(self.path+fname):
             return cPickle.load(open(self.path+fname, 'rb'))
+
+        dt = {'images': [], 'emos':[], 'subjects':[], 'tasks':[], 'poses':[]}
+
+        subjects = [self.subjects(i) for i in np.random.randint(0, high=len(self.subjects), size=10)]
+        print 'List of selected subjects: {}'.format(subjects)
+
+        # Get list of subjects
+        for subject in subjects:
+            for task in self.tasks:
+                for pose in self.poses:
+                    # TODO : generalize to all partitions
+                    fname = self.path + 'FERA2017_TR_' + subject + '_' + task + '_' + pose + '.mp4'
+                    print 'Reading file {}'.format(fname)
+
+                    # Read video
+                    frames = read_video(fname)
+
+                    # Save
+                    dt['images'].append(frames)
+                    #dt['landmarks'].append(np.asarray(S[1], dtype=np.float16))
+                    #dt['emos'].append(read_folder(self.path_emo+rpath))
+                    dt['subjects'].append(subject)
+                    dt['tasks'].append(task)
+                    dt['poses'].append(pose)
+
+        cPickle.dump(dt, open(self.path+fname, 'wb'), cPickle.HIGHEST_PROTOCOL)
+
+    def _get_subjects(self):
+        fnames = [f for f in os.listdir(self.path) if f.endswith('.mp4')]
+        return list(set([re.split('_', f)[2] for f in fnames]))
 
 class ReaderCKplus():
     def __init__(self, path):
@@ -182,7 +216,7 @@ class ReaderDisfa():
             lm_seq = np.asarray([np.fliplr(x['pts'])
                                  for x in read_folder(self.path_lm+subject+'/'+'frame_lm/', self._lm_file_sorter)])
             au_seq = read_folder(self.path_au+subject+'/', self._au_file_sorter)
-            im_seq = read_avi(self.path_vidl+'LeftVideo'+subject+'_comp.avi')
+            im_seq = read_video(self.path_vidl+'LeftVideo'+subject+'_comp.avi')
 
             # Extract face and resize
             S = map(list, zip(*[extract(i,l) for i,l in zip(im_seq, lm_seq)]))
@@ -214,7 +248,31 @@ if __name__ == '__main__':
     path_server_pain = '/home/corneanu/data/pain/'
     path_server_disfa = '/home/corneanu/data/disfa/'
     path_ckplus = '/Users/cipriancorneanu/Research/data/ck/'
+    path_fera2017 = '/Users/cipriancorneanu/Research/data/fera2017/train/'
 
-    r_ckp = ReaderCKplus(path_ckplus)
-    dt = r_ckp.read('ckp.pkl')
+
+    fera_ckp = ReaderFera2017(path_fera2017)
+    dt = fera_ckp.read('fera2017_reduced.pkl')
+
+    '''
+    for f in ['FERA17_TR_M001_T1_5.mp4', 'FERA17_TR_M001_T1_2.mp4', 'FERA17_TR_M001_T1_6.mp4']:
+        fname = path_fera2017 + f
+        frames = read_video(fname)
+
+        import dlib
+        import frontalizer.facial_feature_detector as feature_detection
+        predictor = dlib.shape_predictor('/Users/cipriancorneanu/Research/code/facepp/models/shape_predictor_models/shape_predictor_68_face_landmarks.dat')
+
+        geoms = np.zeros((len(frames),68,2))
+        for i in range(0, len(frames), 30):
+            geoms[i,...] = np.squeeze(feature_detection.get_landmarks(frames[i], predictor))
+
+        import matplotlib.pyplot as plt
+
+        for i in range(0,len(frames),30):
+            plt.imshow(frames[i])
+            plt.scatter(geoms[i, :, 0], geoms[i, :, 1])
+            plt.savefig('/Users/cipriancorneanu/Research/data/fera2017/results/' + f + '_' + str(i) + '.png')
+            plt.clf()
+    '''
 

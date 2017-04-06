@@ -3,7 +3,8 @@ __author__ = 'cipriancorneanu'
 import os
 import scipy.io
 import numpy as np
-import av
+import imageio
+import skimage.color
 
 def read_folder(path, sorter=None):
     # Get files from folder
@@ -29,6 +30,7 @@ def get_files(path, sorter=None):
 def read_mat(fname):
     return scipy.io.loadmat(fname)
 
+'''
 def read_avi(fname, mode='L'):
     # TODO: Consider passing video reading to opencv as PyAV depends on ffmpeg
 
@@ -41,6 +43,18 @@ def read_avi(fname, mode='L'):
             im = np.asarray(frame.to_image().convert(mode), dtype=np.uint8)
             seq.append(im)
     return seq
+'''
+
+def read_video(fname, colorspace='RGB'):
+    vid = imageio.get_reader(fname, 'ffmpeg')
+
+    # For the moment just read some frames to speedup
+    frames = np.asarray([np.asarray(vid.get_data(i)) for i in np.random.randint(0, high=len(vid), size=10)])
+
+    if colorspace=='L':
+        return np.asarray([skimage.color.rgb2grey(frame) for frame in frames])
+    elif colorspace == 'RGB':
+        return frames
 
 def read_image(fname, mode='L'):
     return np.asarray(scipy.misc.imread(fname, mode), dtype=np.uint8)

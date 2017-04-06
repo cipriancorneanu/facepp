@@ -20,7 +20,6 @@ def get_landmarks(img, predictor):
     predictor_path = this_path + "/dlib_models/shape_predictor_68_face_landmarks.dat"
     detector = dlib.get_frontal_face_detector()
 
-
     lmarks = []
     dets = detector(img, 1)
     shapes = []
