@@ -26,6 +26,9 @@ class ReaderFera2017():
         self.subjects = self._get_subjects()
         self.tasks = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8']
         self.poses = [str(i) for i in range(1,10)]
+        self.aus = [1, 4, 6, 7, 10, 12, 14, 15, 17, 23]
+        self.aus_int = ['AU01', 'AU04', 'AU06', 'AU10', 'AU12', 'AU14', 'AU17']
+
 
     def read(self, fname, mpath):
         if os.path.exists(self.path+fname):
@@ -54,6 +57,8 @@ class ReaderFera2017():
                     if os.path.exists(vidname) and os.path.exists(occname):
                         print 'Reading video file {}'.format(vidname)
                         ims = read_video(vidname, colorspace='L')
+                        occ = read_csv(occname)
+                        #int = _read_au_intensities(occname, subject, task)
 
                         print '     Extract faces and resize '
                         faces = []
@@ -70,7 +75,7 @@ class ReaderFera2017():
 
                         # Save
                         dt['ims'].append(afaces)
-                        #dt['occ'].append(occ)
+                        dt['occ'].append([x[1:] for x in occ[1:]])
                         #dt['int'].append(int)
                         dt['geoms'].append(ageoms)
                         dt['subjects'].append(subject)
@@ -81,6 +86,12 @@ class ReaderFera2017():
 
         cPickle.dump(dt, open(self.path+fname, 'wb'), cPickle.HIGHEST_PROTOCOL)
         return dt
+
+    def _read_au_intensities(self, subject, task):
+        dt = []
+        for au in self.aus_int:
+            fname = self.path_occ + 'FERA17_TR_' + subject + '_' + task + '_' + au + '.csv'
+            dt.append(read_csv(fname))
 
     def _get_subjects(self):
         fnames = [f for f in os.listdir(self.path_ims) if f.endswith('.mp4')]
@@ -286,6 +297,7 @@ if __name__ == '__main__':
     path_ckplus = '/Users/cipriancorneanu/Research/data/ck/'
     path_fera2017_train = '/Users/cipriancorneanu/Research/data/fera2017/train/'
     path_align_models = '/Users/cipriancorneanu/Research/code/facepp/models/'
+
 
     fera_ckp = ReaderFera2017(path_fera2017_train)
     dt = fera_ckp.read('fera17.pkl', path_align_models)

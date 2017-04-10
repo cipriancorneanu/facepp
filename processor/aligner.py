@@ -86,7 +86,7 @@ def batch_align(faces, model3D, eyemask, predictor):
 
     ageoms = np.zeros((n_faces,68,2))
 
-    for i in range(0, n_faces):
+    for i in range(0, 10):
         start_time = time.time()
 
         img = np.squeeze(faces[i,...])

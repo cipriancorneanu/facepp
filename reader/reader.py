@@ -5,6 +5,7 @@ import scipy.io
 import numpy as np
 import imageio
 import skimage.color
+import csv
 
 def read_folder(path, sorter=None):
     # Get files from folder
@@ -63,3 +64,11 @@ def read_txt(fname, start=0, stop=None):
     # Read lines from text file from start to stop
     with open(fname) as f:
         return [line.split() for line in f][start:stop]
+
+def read_csv(fname):
+    with open(fname, 'rb') as csvfile:
+        spamreader = csv.reader(csvfile, delimiter=' ', quotechar='|')
+        return [[int(x) for x in row[0].split(',')] for row in spamreader ]
+
+if __name__ == '__main__':
+    read_csv('/Users/cipriancorneanu/Research/data/fera2017/train/occ/FERA17_TR_F003_T1.csv')
