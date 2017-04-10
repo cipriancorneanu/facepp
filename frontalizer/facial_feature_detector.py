@@ -30,15 +30,5 @@ def get_landmarks(img, predictor):
         lmarks.append(xy)
 
     lmarks = np.asarray(lmarks, dtype='float32')
-    # display_landmarks(img, dets, shapes)
+
     return lmarks
-
-
-def display_landmarks(img, dets, shapes):
-    win = dlib.image_window()
-    win.clear_overlay()
-    win.set_image(img)
-    for shape in shapes:
-        win.add_overlay(shape)
-    win.add_overlay(dets)
-    dlib.hit_enter_to_continue()

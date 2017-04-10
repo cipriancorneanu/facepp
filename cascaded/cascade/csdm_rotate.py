@@ -3,8 +3,8 @@ from ..toolkit.pca import variation_modes
 import numpy as np
 
 
-class CascadeCsdm(CascadeSdm):
-    def __init__(self, regressor='metalinear', descriptor='sift', num_bases=5, variance=0.9):
+class CascadeCsdmRotate(CascadeSdm):
+    def __init__(self, regressor='metalinear', descriptor='sift_rotate', num_bases=5, variance=0.9):
         CascadeSdm.__init__(self, regressor, descriptor)
         self.num_bases = num_bases
         self.variance = variance
@@ -35,8 +35,12 @@ class CascadeCsdm(CascadeSdm):
         f_feats = np.dot(features - mean_features[None, :], pca_transform)
         del features
 
-        # Prepare targets
+        # Prepare rotated targets
         targets = ground_truth[mapping, ...] - params
+        targets = self._encode_parameters(self._apply_rotations(
+            self._decode_parameters(targets),
+            rotations, center=False)
+        )
 
         # Learn regressor
         regressor = self.regressor()
@@ -46,7 +50,7 @@ class CascadeCsdm(CascadeSdm):
             'mean_features': mean_features,
             'pca_transform': pca_transform,
             'sbs_transform': sbs_transform
-        }}, tr_preds
+        }}, self._encode_parameters(self._apply_rotations(self._decode_parameters(tr_preds), -rotations, center=False))
 
     def _align_step(self, images, params, mapping, i, features=None, args=None):
         descriptor = self.steps[i]['descriptor']
@@ -56,12 +60,11 @@ class CascadeCsdm(CascadeSdm):
         rotations = self._get_angles(shapes)
 
         # Extract features
-        shapes = params.reshape((-1, self.num_landmarks, self.num_dimensions))
         features = features if features is not None else descriptor['descriptor'].extract(
             images,
             shapes[:, :, :2],
             mapping,
-            args={'rotations': self._get_angles(shapes)}
+            args={'rotations': rotations}
         )[0]
 
         f_projs = np.dot(features - descriptor['mean_features'][None, :], descriptor['sbs_transform'])
@@ -69,4 +72,7 @@ class CascadeCsdm(CascadeSdm):
 
         # Apply regressor
         preds = self.steps[i]['regressor'].apply(f_projs, f_feats)
-        return params + preds, f_projs
+        return params + self._encode_parameters(self._apply_rotations(
+            self._decode_parameters(preds),
+            -rotations, center=False
+        )), f_projs

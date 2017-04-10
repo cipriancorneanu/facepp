@@ -1,53 +1,89 @@
 __author__ = 'cipriancorneanu'
 
-from reader import *
-from extractor import *
-import os
-import cPickle
+#from extractor import *
 import re
+from processor.aligner import batch_align
+import os
+import numpy as np
+import matplotlib.pyplot as plt
+import cPickle
+import scipy.io as io
+import getopt
+import frontalizer.check_resources as check
+import dlib
+from frontalizer.frontalize import ThreeD_Model
+from frontalizer import facial_feature_detector as feature_detection
+from extractor import extract
+from reader import *
+import time
 
 class ReaderFera2017():
     def __init__(self, path):
         self.path = path
-        self.path_im = path + 'cohn-kanade-images/'
-        self.path_lm = path + 'Landmarks/'
-        self.path_emo = path + 'Emotion/'
+        self.path_ims = path + 'ims/'
+        self.path_occ = path + 'occ/'
+        self.path_int = path + 'int/'
         self.subjects = self._get_subjects()
         self.tasks = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8']
         self.poses = [str(i) for i in range(1,10)]
 
-    def read(self, fname):
+    def read(self, fname, mpath):
         if os.path.exists(self.path+fname):
             return cPickle.load(open(self.path+fname, 'rb'))
 
-        dt = {'images': [], 'emos':[], 'subjects':[], 'tasks':[], 'poses':[]}
+        dt = {'ims': [], 'geoms': [], 'occ':[], 'int':[], 'subjects':[], 'tasks':[], 'poses':[]}
 
-        subjects = [self.subjects(i) for i in np.random.randint(0, high=len(self.subjects), size=10)]
+        subjects = [self.subjects[i] for i in np.random.randint(0, high=len(self.subjects), size=1)]
         print 'List of selected subjects: {}'.format(subjects)
+
+        # Load models
+        check.check_dlib_landmark_weights(mpath + 'shape_predictor_models')
+        predictor = dlib.shape_predictor(mpath + 'shape_predictor_models/shape_predictor_68_face_landmarks.dat')
+        model3D = ThreeD_Model(mpath + 'frontalization_models/model3Ddlib.mat', 'model_dlib')
+        eyemask = np.asarray(io.loadmat(mpath + 'frontalization_models/eyemask.mat')['eyemask'])
 
         # Get list of subjects
         for subject in subjects:
-            for task in self.tasks:
-                for pose in self.poses:
-                    # TODO : generalize to all partitions
-                    fname = self.path + 'FERA2017_TR_' + subject + '_' + task + '_' + pose + '.mp4'
-                    print 'Reading file {}'.format(fname)
+            for task in self.tasks[:1]:
+                for pose in self.poses[5:6]:
+                    start_time = time.time()
+                    vidname = self.path_ims + 'FERA17_TR_' + subject + '_' + task + '_' + pose + '.mp4'
+                    occname = self.path_occ + 'FERA17_TR_' + subject + '_' + task + '.csv'
 
                     # Read video
-                    frames = read_video(fname)
+                    if os.path.exists(vidname) and os.path.exists(occname):
+                        print 'Reading video file {}'.format(vidname)
+                        ims = read_video(vidname, colorspace='L')
 
-                    # Save
-                    dt['images'].append(frames)
-                    #dt['landmarks'].append(np.asarray(S[1], dtype=np.float16))
-                    #dt['emos'].append(read_folder(self.path_emo+rpath))
-                    dt['subjects'].append(subject)
-                    dt['tasks'].append(task)
-                    dt['poses'].append(pose)
+                        print '     Extract faces and resize '
+                        faces = []
+                        for im in ims:
+                            geom = np.squeeze(feature_detection.get_landmarks(im, predictor))
+                            face, geom, _ = extract(im, geom, extension=1.1, size=200)
+                            faces.append(face)
+
+                        print '     Align faces'
+                        afaces, ageoms = batch_align(np.asarray(faces), model3D, eyemask, predictor)
+
+                        print '     Readind AU occurence labels'
+                        #occ = read_csv(occname)
+
+                        # Save
+                        dt['ims'].append(afaces)
+                        #dt['occ'].append(occ)
+                        #dt['int'].append(int)
+                        dt['geoms'].append(ageoms)
+                        dt['subjects'].append(subject)
+                        dt['tasks'].append(task)
+                        dt['poses'].append(pose)
+
+                        print '     Total time per video: {}'.format(time.time() - start_time)
 
         cPickle.dump(dt, open(self.path+fname, 'wb'), cPickle.HIGHEST_PROTOCOL)
+        return dt
 
     def _get_subjects(self):
-        fnames = [f for f in os.listdir(self.path) if f.endswith('.mp4')]
+        fnames = [f for f in os.listdir(self.path_ims) if f.endswith('.mp4')]
         return list(set([re.split('_', f)[2] for f in fnames]))
 
 class ReaderCKplus():
@@ -79,7 +115,7 @@ class ReaderCKplus():
                 if os.path.exists(self.path_lm+rpath) and os.path.exists(self.path_emo+rpath):
                     lm_seq = np.asarray(read_folder(self.path_lm+rpath), dtype=np.float16)[:,:,::-1]
 
-                    # Extract face and resize
+                    # Extract face from landmarks and resize
                     S = map(list, zip(*[extract(i,l,1.05,224) for i,l in zip(im_seq, lm_seq)]))
 
                     dt['images'].append(np.asarray(S[0], dtype=np.uint8))
@@ -248,13 +284,49 @@ if __name__ == '__main__':
     path_server_pain = '/home/corneanu/data/pain/'
     path_server_disfa = '/home/corneanu/data/disfa/'
     path_ckplus = '/Users/cipriancorneanu/Research/data/ck/'
-    path_fera2017 = '/Users/cipriancorneanu/Research/data/fera2017/train/'
+    path_fera2017_train = '/Users/cipriancorneanu/Research/data/fera2017/train/'
+    path_align_models = '/Users/cipriancorneanu/Research/code/facepp/models/'
 
+    fera_ckp = ReaderFera2017(path_fera2017_train)
+    dt = fera_ckp.read('fera17.pkl', path_align_models)
 
-    fera_ckp = ReaderFera2017(path_fera2017)
-    dt = fera_ckp.read('fera2017_reduced.pkl')
+    ims, geoms = (dt['ims'][0], dt['geoms'][0])
+
+    for i, (im, geom) in enumerate(zip(ims, geoms)):
+        plt.imshow(im)
+        plt.scatter(geom[:, 0], geom[:, 1])
+        plt.savefig('/Users/cipriancorneanu/Research/data/fera2017/results/' + str(i) + '.png')
+        plt.clf()
+
 
     '''
+    import matplotlib .pyplot as plt
+    data = cPickle.load(open(path_ckplus+'a_ckp.pkl', 'rb'))
+    f_data = {'faces': [], 'geoms': [], 'emos': [], 'subjects':[], 'sequences': []}
+
+    cc = 0
+    for i, (emo, face, geom, sub, seq) in enumerate(zip(data['emos'], data['faces'], data['geoms'], data['subjects'], data['sequences'])):
+        print 'Image # {}'.format(i)
+        if emo:
+            f_data['faces'].append(face)
+            f_data['geoms'].append(geom)
+            f_data['emos'].append(int(float(emo[0][0][0])))
+            f_data['subjects'].append(sub)
+            f_data['sequences'].append(seq)
+
+
+            middle = int(len(face)/2)
+            plt.imshow(face[middle, ...])
+            plt.scatter(geom[middle, :, 0], geom[middle, :, 1])
+            emo = int(float(emo[0][0][0]))
+            plt.savefig(path_ckplus + sub + '_' + seq + '_' + str(emo) +  '.png')
+            plt.clf()
+        else:
+            print '     No label'
+
+    cPickle.dump(f_data, open(path_ckplus+'fa_ckp.pkl', 'wb'), cPickle.HIGHEST_PROTOCOL)
+
+
     for f in ['FERA17_TR_M001_T1_5.mp4', 'FERA17_TR_M001_T1_2.mp4', 'FERA17_TR_M001_T1_6.mp4']:
         fname = path_fera2017 + f
         frames = read_video(fname)

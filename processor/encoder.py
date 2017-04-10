@@ -1,10 +1,13 @@
 __author__ = 'cipriancorneanu'
 
-from cascaded.toolkit import procrustes, pca, linalg
-import numpy as np
 import cPickle
-from processor.partitioner import concat
 import os
+
+import numpy as np
+
+from cascaded.cascade.toolkit import procrustes, pca, linalg
+from processor.partitioner import concat
+
 
 def encode_parametric(uncoded):
     # Procrustes

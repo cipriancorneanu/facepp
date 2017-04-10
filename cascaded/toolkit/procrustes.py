@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 from linalg import transform_shapes
 
 
@@ -99,44 +100,30 @@ def procrustes(X, Y, scaling=True, reflection='best'):
 
     # transformation matrix
     if my < m:
-        T = T[:my, :]
+        T = T[:my,:]
     c = muX - b*np.dot(muY, T)
 
     return d, Z, {'rotation': T, 'scale': b, 'translation': c}
 
 
-def procrustes_generalized(shapes, num_iter=5, verbose=True):
+def procrustes_generalized(shapes, num_iter=10):
         # Get shapes dimension, append extra dimension (ones) for translation
-        n_i, n_l, n_d = shapes.shape
+        [n_i, n_l] = (shapes.shape[0], shapes.shape[1])
+        shapes = np.concatenate((shapes, np.ones((n_i, n_l, 1))), axis=2)
 
         # Optimize transforms and mean shape
-        m, tfms = None, [{
-            'rotation': np.eye(n_d, dtype=np.float32),
-            'scale': 1,
-            'translation': np.mean(s, axis=0)
-        } for s in shapes]
-
-        # Display MSE of alignment
-        if verbose:
-            mse = np.mean((shapes - np.mean(shapes, axis=0)[None, :]) ** 2)
-            print 'Generalized Procrustes Analysis error (@0): ' + str(mse)
-
-        # Optimize transforms and mean shape
-        a_shapes = shapes
+        tfms = [None] * shapes.shape[0]
+        m = np.mean(shapes, axis=0)
+        m[:, :-1] -= np.mean(m[:, :-1], axis=0)[None, :]
         for it in range(num_iter):
-            # Calculate mean
-            m = np.mean(a_shapes, axis=0)
-            m = (m - np.mean(m, axis=0)[None, :]) / np.mean([t['scale'] for t in tfms])
-
-            # Re-align instances to mean
             for ir in range(n_i):
-                _, _, tfms[ir] = procrustes(m, shapes[ir, ...], reflection=False)
+                _, _, tfms[ir] = procrustes(shapes[ir, :, :-1], m[:, :-1], scaling=True, reflection=False)
 
-            # Display MSE of alignment
-            a_shapes = transform_shapes(shapes, tfms)
-            if verbose:
-                mse = np.mean((a_shapes - m[None, ...]) ** 2)
-                print 'Generalized Procrustes Analysis error (@' + str(1+it) + '): ' + str(mse)
+            # Recalculate mean
+            m[:, :-1] = np.mean(transform_shapes(shapes[:, :, :-1], tfms, inverse=True), axis=0)
+            m[:, :-1] -= np.mean(m[:, :-1], axis=0)[None, :]
+            # err = np.mean((transform_shapes(shapes[:, :, :-1], tfms, inverse=True) - m[:, :-1][None, ...]) ** 2)
+            # pass
 
         # Return mean and transforms
-        return m, tfms
+        return m[:, :-1], tfms

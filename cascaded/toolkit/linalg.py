@@ -15,23 +15,17 @@ def transform_shapes(shapes, transforms, inverse=False):
     return aligned
 
 
-def build_rotation_matrix(roll, pitch=None, yaw=None):
-    sc, cc = math.sin(roll), math.cos(roll)
-    if pitch is None:
-        return np.array([[cc, -sc], [sc, cc]], dtype=np.float32)
-
-    sa, ca = math.sin(yaw), math.cos(yaw)
-    sb, cb = math.sin(pitch), math.cos(pitch)
-    return np.array([
-        [ca*cb, ca*sb*sc-sa*cc, ca*sb*cc+sa*sc],
-        [sa*cb, sa*sb*sc+ca*cc, sa*sb*cc-ca*sc],
-        [-sb,   cb*sc,          cb*cc],
-    ], dtype=np.float32)
-
-
-def get_rotation_angles(matrix):
-    return np.array([
-        math.atan2(matrix[2, 1], matrix[2, 2]),
-        math.atan2(-matrix[2, 0], math.sqrt(matrix[2, 1]**2 + matrix[2, 2]**2)),
-        math.atan2(matrix[1, 0], matrix[0, 0]),
-    ], dtype=np.float32) if matrix.shape[0] == 3 else np.arctan2(matrix[1, 0], matrix[1, 1])
+def build_rotation_matrix(roll, pitch, yaw):
+    return np.dot(np.dot([
+        [math.cos(yaw), -math.sin(yaw), 0],
+        [math.sin(yaw), math.cos(yaw), 0],
+        [0, 0, 1],
+    ], [
+        [math.cos(pitch), 0, math.sin(pitch)],
+        [0, 1, 0],
+        [-math.sin(pitch), 0, math.cos(pitch)],
+    ]), [
+        [1, 0, 0],
+        [0, math.cos(roll), -math.sin(roll)],
+        [0, math.sin(roll), math.cos(roll)],
+    ])

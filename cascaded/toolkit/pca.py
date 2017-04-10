@@ -1,6 +1,7 @@
 import numpy as np
 from sklearn.decomposition import PCA
 
+
 def impute_variables(bases, instances, masks):
     r_data = (instances * masks).astype(np.float32, copy=False)
     tfm = np.dot(bases, np.transpose(bases))
@@ -13,28 +14,24 @@ def impute_variables(bases, instances, masks):
 
 
 def variation_modes(data, mean=None, min_variance=0.95, n_bases=None, mask=None):
-    # If not considering missing values & dataset small enough, use fast PCA implementation from sklearn
-    if mask is None and np.prod(data.shape) < 500 * (10 ** 12):
+    # If not considering missing values, use fast PCA implementation from sklearn
+    if mask is None:
         mean = np.mean(data, axis=0) if mean is None else mean
         pca = PCA(n_components=min_variance if n_bases is None else n_bases).fit(data - mean[None, :])
         return mean, np.transpose(pca.components_), pca.explained_variance_
 
-    # Set missing data to 0, prepare floats mask
-    f_mask = None
-    if mask is not None:
-        f_mask = mask.astype(np.float32)
-        data[~mask] = 0
+    # Check number of samples and variables, set missing data to 0
+    mask = np.ones(tuple(data.shape), dtype=np.bool) if mask is None else mask
+    f_mask = mask.astype(np.float32)
+    data[~mask] = 0
 
     # Calculate and subtract mean from samples
-    v_size = data.shape[0] if mask is None else np.sum(f_mask, axis=0)
-    mean = np.sum(data, axis=0) / v_size if mean is None else mean
+    mean = np.sum(data, axis=0) / np.sum(f_mask, axis=0) if mean is None else mean
     data = data - mean[None, :]
-    if mask is not None:
-        data[~mask] = 0
+    data[~mask] = 0
 
     # Calculate covariances matrix and decompose
-    m_size = (data.shape[0] if mask is None else np.dot(np.transpose(f_mask), f_mask)) - 1
-    covariances = np.dot(np.transpose(data), data) / m_size
+    covariances = np.dot(np.transpose(data), data) / (np.dot(np.transpose(f_mask), f_mask) - 1)
     u, s, _ = np.linalg.svd(covariances)
 
     n_bases = np.where(np.cumsum(s / np.sum(s)) >= min_variance)[0][0]+1 if n_bases is None else n_bases

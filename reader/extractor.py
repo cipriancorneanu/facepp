@@ -2,7 +2,7 @@ __author__ = 'cipriancorneanu'
 
 import numpy as np
 import scipy.misc
-from reader import *
+#from reader import *
 
 def extract(im, lm, extension=1.3, size=200):
     # Crop and resize by keeping aspect ratio
@@ -60,10 +60,11 @@ def _extend_rect(rect, ext):
 def _pad(im, size):
     # Extend image to shape by adding black margins
     if im.shape < size:
-        padded = np.zeros(shape, dtype=mat.dtype)
+        padded = np.zeros(size, dtype=im.dtype)
         padded[0:im.shape[0], 0:im.shape[1]] = im
         return padded
 
+'''
 if __name__ == '__main__':
 
     path = '/Users/cipriancorneanu/Research/data/300vw/'
@@ -88,3 +89,4 @@ if __name__ == '__main__':
         dt['landmarks'].append(S[1])
         dt['T'].append(S[2])
         dt['names'].append(d)
+'''

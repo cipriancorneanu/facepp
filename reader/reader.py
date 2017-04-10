@@ -12,7 +12,7 @@ def read_folder(path, sorter=None):
 
     #Read according to extension
     return [read_txt(path+file) if ext=='txt' else
-            read_avi(path+file) if ext=='avi' else
+            read_video(path+file) if ext=='avi' else
             read_mat(path+file) if ext=='mat' else
             read_image(path+file) for ext, file in zip(extensions, files)]
 
@@ -52,7 +52,7 @@ def read_video(fname, colorspace='RGB'):
     frames = np.asarray([np.asarray(vid.get_data(i)) for i in np.random.randint(0, high=len(vid), size=10)])
 
     if colorspace=='L':
-        return np.asarray([skimage.color.rgb2grey(frame) for frame in frames])
+        return np.asarray([np.asarray(255*skimage.color.rgb2gray(frame), dtype=np.uint8) for frame in frames])
     elif colorspace == 'RGB':
         return frames
 
