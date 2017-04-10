@@ -102,3 +102,12 @@ def batch_align(faces, model3D, eyemask, predictor):
         print '     Alignining face {}/{}: {}'.format(i, n_faces, (time.time() - start_time))
 
     return afaces, ageoms
+
+def align(i, face, model3D, eyemask, predictor):
+
+    # Align face and geometry
+    aface, ageom = sym_align(face, model3D, eyemask, predictor)
+
+    print '         Alignining face {}'.format(i)
+
+    return aface, ageom
