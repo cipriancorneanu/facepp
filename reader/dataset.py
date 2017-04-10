@@ -36,7 +36,7 @@ class ReaderFera2017():
 
         dt = {'ims': [], 'geoms': [], 'occ':[], 'int':[], 'subjects':[], 'tasks':[], 'poses':[]}
 
-        subjects = [self.subjects[i] for i in np.random.randint(0, high=len(self.subjects), size=1)]
+        subjects = [self.subjects[i] for i in np.random.randint(0, high=len(self.subjects), size=10)]
         print 'List of selected subjects: {}'.format(subjects)
 
         # Load models
