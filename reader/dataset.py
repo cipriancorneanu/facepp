@@ -72,10 +72,10 @@ class ReaderFera2017():
                         afaces, ageoms = (np.asarray([x[0] for x in aligned]), np.asarray([x[1] for x in aligned]))
 
                         # Save
-                        dt['ims'].append(afaces[0])
+                        dt['ims'].append(afaces)
                         dt['occ'].append([x[1:] for x in occ[1:]])
                         dt['int'].append(int)
-                        dt['geoms'].append(ageoms[0])
+                        dt['geoms'].append(ageoms)
                         dt['subjects'].append(subject)
                         dt['tasks'].append(task)
                         dt['poses'].append(pose)
