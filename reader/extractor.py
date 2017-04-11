@@ -2,7 +2,7 @@ __author__ = 'cipriancorneanu'
 
 import numpy as np
 import scipy.misc
-#from reader import *
+import dlib
 
 def extract(im, lm, extension=1.3, size=200):
     # Crop and resize by keeping aspect ratio
@@ -64,29 +64,13 @@ def _pad(im, size):
         padded[0:im.shape[0], 0:im.shape[1]] = im
         return padded
 
-'''
-if __name__ == '__main__':
-
-    path = '/Users/cipriancorneanu/Research/data/300vw/'
-
-    dirs = ['002']
-    dt = {'images':[], 'landmarks':[], 'T':[], 'names': []}
-
-    for d in dirs:
-        print '         loading sequence ' + str(d)
-
-        im_seq = read_folder(path + d + '/')
-        lm_seq = np.asarray(read_folder(path + d + '/annot/'), dtype=np.float16) #! Cutting text reading
-
-        S = map(list, zip(*[extract(i,l) for i,l in zip(im_seq[0], lm_seq)]))
-
-        # Check if transformation is correct
-        Lprim = [np.dot(np.hstack((L,np.ones((68,1)))), T) for L,T in zip(S[1], S[2])]
-        D = [L - L_[:,:2] for L, L_ in zip(lm_seq, Lprim)]
-
-        # Guard data
-        dt['images'].append(S[0])
-        dt['landmarks'].append(S[1])
-        dt['T'].append(S[2])
-        dt['names'].append(d)
-'''
+def extract_face(i, im, ext=1.1, sz=224):
+    # Extract face from image
+    face_detector = dlib.get_frontal_face_detector()
+    dets = face_detector(im, 1)
+    rect = [d for d in dets][0]
+    geom = np.asarray([[rect.left(), rect.top()], [rect.left(), rect.bottom()],
+                       [rect.right(), rect.top()], [rect.right(), rect.bottom()]])
+    face, geom, _ = extract(im, geom, extension=ext, size=sz)
+    print '         Extracting face {}'.format(i)
+    return face

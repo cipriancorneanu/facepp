@@ -9,7 +9,7 @@ import getopt
 import frontalizer.check_resources as check
 import dlib
 from frontalizer.frontalize import ThreeD_Model
-from extractor import extract
+from extractor import extract, extract_face
 from reader import *
 import time
 from joblib import Parallel, delayed
@@ -28,7 +28,7 @@ class ReaderFera2017():
         self.aus = [1, 4, 6, 7, 10, 12, 14, 15, 17, 23]
         self.aus_int = ['AU01', 'AU04', 'AU06', 'AU10', 'AU12', 'AU14', 'AU17']
 
-    def read(self, ipath, opath, mpath):
+    def read(self, ipath, opath, mpath, cores=4):
         '''
         if os.path.exists(self.path+fname):
             return cPickle.load(open(self.path+fname, 'rb'))
@@ -62,7 +62,7 @@ class ReaderFera2017():
                         int = self._read_au_intensities(subject, task)
 
                         print '     Extract faces and resize '
-                        faces = Parallel(n_jobs=4)(delayed(extract_face)(i,im) for i,im in enumerate(ims))
+                        faces = Parallel(n_jobs=cores)(delayed(extract_face)(i,im) for i,im in enumerate(ims))
 
                         print '     Align faces'
                         aligned = [align(i, face, model3D, eyemask, predictor) for i,face in enumerate(faces)]
@@ -84,7 +84,6 @@ class ReaderFera2017():
                         cPickle.dump(dt, open(self.path+'fera17_'+ subject + '_' + task + '_' + pose + '.pkl', 'wb'),
                                      cPickle.HIGHEST_PROTOCOL)
                         print '     Total time per video: {}'.format(time.time() - start_time)
-        #return dt
 
     def _read_au_intensities(self, subject, task):
         dt = []
@@ -97,17 +96,6 @@ class ReaderFera2017():
     def _get_subjects(self):
         fnames = [f for f in os.listdir(self.path_ims) if f.endswith('.mp4')]
         return list(set([re.split('_', f)[2] for f in fnames]))
-
-def extract_face(i, im):
-    face_detector = dlib.get_frontal_face_detector()
-    dets = face_detector(im, 1)
-    rect = [d for d in dets][0]
-    geom = np.asarray([[rect.left(), rect.top()], [rect.left(), rect.bottom()],
-                       [rect.right(), rect.top()], [rect.right(), rect.bottom()]])
-    #geom = np.squeeze(feature_detection.get_landmarks(im, predictor))
-    face, geom, _ = extract(im, geom, extension=1.1, size=224)
-    print '         Extracting face {}'.format(i)
-    return face
 
 class ReaderCKplus():
     def __init__(self, path):
