@@ -12,7 +12,7 @@ def read_fera2017(argv):
         (
             args[0], args[1], args[2], int(args[3])
         )
-    
+
     fera_ckp = ReaderFera2017(ipath)
     dt = fera_ckp.read(opath, mpath, cores)
 

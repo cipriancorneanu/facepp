@@ -6,7 +6,6 @@ import numpy as np
 import imageio
 import skimage.color
 import csv
-import av
 
 def read_folder(path, sorter=None):
     # Get files from folder
@@ -32,8 +31,8 @@ def get_files(path, sorter=None):
 def read_mat(fname):
     return scipy.io.loadmat(fname)
 
-
-def read_video_(fname, colorspace='L'):
+'''
+def read_video(fname, colorspace='L'):
     # TODO: Consider passing video reading to opencv as PyAV depends on ffmpeg
 
     container = av.open(fname)
@@ -45,6 +44,7 @@ def read_video_(fname, colorspace='L'):
             im = np.asarray(frame.to_image().convert(colorspace), dtype=np.uint8)
             seq.append(im)
     return np.asarray(seq)
+'''
 
 def read_video(fname, colorspace='RGB'):
     vid = imageio.get_reader(fname, 'ffmpeg')
