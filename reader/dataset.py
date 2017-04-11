@@ -69,13 +69,13 @@ class ReaderFera2017():
                         aligned = Parallel(n_jobs=2)(delayed(align)(i, face, model3D, eyemask, predictor)
                                                                     for i,face in enumerate(faces)
                         '''
-                        afaces, ageoms = (np.asarray([x[0] for x in aligned])[0], np.asarray([x[1] for x in aligned])[0])
+                        afaces, ageoms = (np.asarray([x[0] for x in aligned]), np.asarray([x[1] for x in aligned]))
 
                         # Save
-                        dt['ims'].append(afaces)
+                        dt['ims'].append(afaces[0])
                         dt['occ'].append([x[1:] for x in occ[1:]])
                         dt['int'].append(int)
-                        dt['geoms'].append(ageoms)
+                        dt['geoms'].append(ageoms[0])
                         dt['subjects'].append(subject)
                         dt['tasks'].append(task)
                         dt['poses'].append(pose)
