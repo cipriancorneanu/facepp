@@ -3,24 +3,18 @@ __author__ = 'cipriancorneanu'
 import getopt
 import sys
 from reader.dataset import ReaderFera2017
+import cPickle
+import matplotlib.pyplot as plt
 
-def read_fera2017(ipath, opath, mpath):
-    '''
+def read_fera2017(argv):
     opts, args = getopt.getopt(argv, '')
-    (ipath, mpath) = \
+    (ipath, opath, mpath, cores) = \
         (
-            args[0], args[1]
+            args[0], args[1], args[2], int(args[3])
         )
-    '''
-
+    
     fera_ckp = ReaderFera2017(ipath)
-    dt = fera_ckp.read(ipath, opath, mpath)
+    dt = fera_ckp.read(opath, mpath, cores)
 
 if __name__ == '__main__':
-    #read_fera2017(sys.argv[1:])
-
-    read_fera2017(
-        '/Users/cipriancorneanu/Research/data/fera2017/train/',
-        '/Users/cipriancorneanu/Research/data/fera2017/results/',
-        '/Users/cipriancorneanu/Research/code/facepp/models/'
-    )
+    read_fera2017(sys.argv[1:])

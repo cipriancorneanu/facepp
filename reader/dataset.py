@@ -15,7 +15,6 @@ import time
 from joblib import Parallel, delayed
 import multiprocessing
 
-
 class ReaderFera2017():
     def __init__(self, path):
         self.path = path
@@ -28,7 +27,7 @@ class ReaderFera2017():
         self.aus = [1, 4, 6, 7, 10, 12, 14, 15, 17, 23]
         self.aus_int = ['AU01', 'AU04', 'AU06', 'AU10', 'AU12', 'AU14', 'AU17']
 
-    def read(self, ipath, opath, mpath, cores=4):
+    def read(self, opath, mpath, cores=4):
         '''
         if os.path.exists(self.path+fname):
             return cPickle.load(open(self.path+fname, 'rb'))
@@ -70,7 +69,7 @@ class ReaderFera2017():
                         aligned = Parallel(n_jobs=2)(delayed(align)(i, face, model3D, eyemask, predictor)
                                                                     for i,face in enumerate(faces)
                         '''
-                        afaces, ageoms = (np.asarray([x[0] for x in aligned]), np.asarray([x[1] for x in aligned]))
+                        afaces, ageoms = (np.asarray([x[0] for x in aligned])[0], np.asarray([x[1] for x in aligned])[0])
 
                         # Save
                         dt['ims'].append(afaces)
@@ -81,7 +80,7 @@ class ReaderFera2017():
                         dt['tasks'].append(task)
                         dt['poses'].append(pose)
 
-                        cPickle.dump(dt, open(self.path+'fera17_'+ subject + '_' + task + '_' + pose + '.pkl', 'wb'),
+                        cPickle.dump(dt, open(opath+'fera17_'+ subject + '_' + task + '_' + pose + '.pkl', 'wb'),
                                      cPickle.HIGHEST_PROTOCOL)
                         print '     Total time per video: {}'.format(time.time() - start_time)
 
@@ -299,7 +298,7 @@ if __name__ == '__main__':
     path_align_models = '/Users/cipriancorneanu/Research/code/facepp/models/'
 
     fera_ckp = ReaderFera2017(path_fera2017_train)
-    dt = fera_ckp.read('fera17.pkl', path_align_models)
+    dt = fera_ckp.read(path_fera2017_train, path_align_models, 2)
 
     ims, geoms = (dt['ims'][0], dt['geoms'][0])
 
