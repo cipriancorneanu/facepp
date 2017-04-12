@@ -84,6 +84,28 @@ class ReaderFera2017():
                                      cPickle.HIGHEST_PROTOCOL)
                         print '     Total time per video: {}'.format(time.time() - start_time)
 
+    def extract_geom(self, path):
+        dt = {'geoms': [], 'occ':[], 'int':[], 'subjects':[], 'tasks':[], 'poses':[]}
+
+        for subject in self.subjects:
+            for task in self.tasks:
+                for pose in self.poses[5:6]:
+                    fname = path+'fera17_'+ subject + '_' + task + '_' + pose + '.pkl'
+
+                    sequence = cPickle.load(open(path+fname, 'rb'))
+
+                    dt['occ'].append(sequence['occ'])
+                    dt['int'].append(sequence['int'])
+                    dt['geoms'].append(sequence['geoms'])
+                    dt['subjects'].append(sequence['subjects'])
+                    dt['tasks'].append(sequence['task'])
+                    dt['poses'].append(sequence['pose'])
+        return dt
+
+    def extract_sift(self):
+        pass
+
+
     def _read_au_intensities(self, subject, task):
         dt = []
         for au in self.aus_int:
