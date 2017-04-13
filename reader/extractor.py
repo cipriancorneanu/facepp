@@ -83,6 +83,6 @@ def extract_face(i, im, ext=1.1, sz=224, verbose=False):
         if verbose:
             print '         No face detected'
 
-        detected, face =  (False, np.zeros((sz,sz)))
+        detected, face =  (False, np.zeros((sz,sze)))
 
     return detected, face

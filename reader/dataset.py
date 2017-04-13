@@ -64,7 +64,8 @@ class ReaderFera2017():
                         faces = Parallel(n_jobs=cores)(delayed(extract_face)(i,im) for i,im in enumerate(ims))
 
                         print '     Align faces'
-                        aligned = [align(i, face, model3D, eyemask, predictor) if face_detected else (face, np.zeros((68,2)))
+                        aligned = [align(i, face, model3D, eyemask, predictor) if face_detected
+                                   else (np.zeros((face.shape[0], face.shape[1], 3)), np.zeros((68,2)))
                                    for i,(face_detected,face) in enumerate(faces)]
 
                         '''
