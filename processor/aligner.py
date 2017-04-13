@@ -15,7 +15,7 @@ def affine_align(face, geom, kpts=(range(36,41), range(42, 47), range(48,67))):
     The landmarks corresponding to the three parts of the face have to be predefined.
     '''
 
-    ref_t = np.float32(np.asarray([[110, 100], [210, 100], [162, 200]])) # hard-coded. To change!
+    ref_t = np.float32(np.asarray([[110, 100], [210, 100], [162, 200]])) # Reference size is (320, 320)
     act_t = np.asarray([np.mean(geom[k,:], axis=0) for k in kpts])
 
     T = cv2.getAffineTransform(act_t, ref_t)
@@ -67,7 +67,7 @@ def sym_align(face, model3D, eyemask, shape_predictor):
 
     except Exception as e:
         print e
-        return np.zeros((224, 224, 3)), np.zeros((68,2))
+        return np.zeros((face.shape[0], face.shape[1], 3)), np.zeros((68,2))
 
     return aface, ageom
 
@@ -103,11 +103,11 @@ def batch_align(faces, model3D, eyemask, predictor):
 
     return afaces, ageoms
 
-def align(i, face, model3D, eyemask, predictor):
-
+def align(i, face, model3D, eyemask, predictor, verbose=False):
     # Align face and geometry
     aface, ageom = sym_align(face, model3D, eyemask, predictor)
 
-    print '         Alignining face {}'.format(i)
+    if verbose:
+        print '         Alignining face {}'.format(i)
 
     return aface, ageom

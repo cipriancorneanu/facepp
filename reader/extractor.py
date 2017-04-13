@@ -64,7 +64,7 @@ def _pad(im, size):
         padded[0:im.shape[0], 0:im.shape[1]] = im
         return padded
 
-def extract_face(i, im, ext=1.1, sz=224):
+def extract_face(i, im, ext=1.1, sz=224, verbose=True):
     # Extract face from image
     face_detector = dlib.get_frontal_face_detector()
     dets = face_detector(im, 1)
@@ -72,5 +72,8 @@ def extract_face(i, im, ext=1.1, sz=224):
     geom = np.asarray([[rect.left(), rect.top()], [rect.left(), rect.bottom()],
                        [rect.right(), rect.top()], [rect.right(), rect.bottom()]])
     face, geom, _ = extract(im, geom, extension=ext, size=sz)
-    print '         Extracting face {}'.format(i)
+
+    if verbose:
+        print '         Extracting face {}'.format(i)
+
     return face

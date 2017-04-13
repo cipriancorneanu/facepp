@@ -65,6 +65,7 @@ class ReaderFera2017():
 
                         print '     Align faces'
                         aligned = [align(i, face, model3D, eyemask, predictor) for i,face in enumerate(faces)]
+
                         '''
                         aligned = Parallel(n_jobs=2)(delayed(align)(i, face, model3D, eyemask, predictor)
                                                                     for i,face in enumerate(faces)
