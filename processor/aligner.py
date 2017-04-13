@@ -66,7 +66,7 @@ def sym_align(face, model3D, eyemask, shape_predictor):
 
     except Exception as e:
         print e
-        return np.zeros((face.shape[0], face.shape[1], 3)), np.zeros((68,2))
+        return np.zeros((h, w, 3)), np.zeros((68,2))
 
     return aface, ageom
 

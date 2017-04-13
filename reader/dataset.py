@@ -33,7 +33,8 @@ class ReaderFera2017():
             return cPickle.load(open(self.path+fname, 'rb'))
         '''
 
-        subjects = [self.subjects[i] for i in np.random.randint(0, high=len(self.subjects), size=10)]
+        #subjects = [self.subjects[i] for i in np.random.randint(0, high=len(self.subjects), size=10)]
+        subjects = self.subjects
         print 'List of selected subjects: {}'.format(subjects)
 
         # Load models
