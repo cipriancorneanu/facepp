@@ -1,7 +1,6 @@
 __author__ = 'cipriancorneanu'
 
 import numpy as np
-import cPickle
 
 def mse(gt, est):
     return np.mean((gt-est)**2, axis=0)

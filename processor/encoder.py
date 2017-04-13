@@ -5,8 +5,8 @@ import os
 
 import numpy as np
 
-from cascaded.cascade.toolkit import procrustes, pca, linalg
-from processor.partitioner import concat
+from ..cascaded.toolkit import procrustes, pca, linalg
+from partitioner import concat
 
 
 def encode_parametric(uncoded):

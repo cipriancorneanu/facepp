@@ -1,12 +1,11 @@
 __author__ = 'cipriancorneanu'
 
-from frontalizer.frontalize import frontalize
-import frontalizer.facial_feature_detector as feature_detection
-import frontalizer.camera_calibration as calib
+from ..frontalizer.frontalize import frontalize
+from ..frontalizer.facial_feature_detector import get_landmarks
+from ..frontalizer.camera_calibration import estimate_camera
 from scipy.misc import imresize
 import cv2
 import numpy as np
-import matplotlib.pyplot as plt
 import time
 
 def affine_align(face, geom, kpts=(range(36,41), range(42, 47), range(48,67))):
@@ -33,11 +32,11 @@ def sym_align(face, model3D, eyemask, shape_predictor):
     '''
     h, w = face.shape[0], face.shape[1]
     # Estimate facial geometry of input face
-    geom = np.squeeze(feature_detection.get_landmarks(face, shape_predictor))
+    geom = np.squeeze(get_landmarks(face, shape_predictor))
 
     # Perform camera calibration according to the first face detected
     try:
-        proj_matrix, camera_matrix, rmat, tvec = calib.estimate_camera(model3D, geom)
+        proj_matrix, camera_matrix, rmat, tvec = estimate_camera(model3D, geom)
 
         # If one channel expand to 3 channels
         if len(face.shape) == 2:
@@ -51,7 +50,7 @@ def sym_align(face, model3D, eyemask, shape_predictor):
             face, geom = affine_align(face, geom)
         else:
             # Estimate facial geometry of frontalized face
-            geom = np.squeeze(feature_detection.get_landmarks(frontal_sym, shape_predictor))
+            geom = np.squeeze(get_landmarks(frontal_sym, shape_predictor))
             face = frontal_sym
 
         # Get ROI around detected facial geometry and add border

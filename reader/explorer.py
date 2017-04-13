@@ -3,7 +3,7 @@ import numpy as np
 import cPickle
 import itertools
 from plotter import *
-from processor.partitioner import *
+from ..processor.partitioner import *
 
 class Explorer():
     def __init__(self, aus=None, au_labels=None, n_int=5, ims=None, lms=None, opath = '../results'):

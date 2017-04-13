@@ -1,14 +1,14 @@
 __author__ = 'cipriancorneanu'
 
 import re
-from processor.aligner import align
+from ..processor.aligner import align
 import matplotlib.pyplot as plt
 import cPickle
 import scipy.io as io
 import getopt
-import frontalizer.check_resources as check
+from ..frontalizer.check_resources import check_dlib_landmark_weights
 import dlib
-from frontalizer.frontalize import ThreeD_Model
+from ..frontalizer.frontalize import ThreeD_Model
 from extractor import extract, extract_face
 from reader import *
 import time
@@ -37,7 +37,7 @@ class ReaderFera2017():
         print 'List of selected subjects: {}'.format(subjects)
 
         # Load models
-        check.check_dlib_landmark_weights(mpath + 'shape_predictor_models')
+        check_dlib_landmark_weights(mpath + 'shape_predictor_models')
         predictor = dlib.shape_predictor(mpath + 'shape_predictor_models/shape_predictor_68_face_landmarks.dat')
         model3D = ThreeD_Model(mpath + 'frontalization_models/model3Ddlib.mat', 'model_dlib')
         eyemask = np.asarray(io.loadmat(mpath + 'frontalization_models/eyemask.mat')['eyemask'])
