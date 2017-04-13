@@ -104,13 +104,9 @@ def batch_align(faces, model3D, eyemask, predictor):
 
 def align(i, face, model3D, eyemask, predictor, verbose=False):
     # Align face and geometry
-    if face:
-        aface, ageom = sym_align(face, model3D, eyemask, predictor)
+    aface, ageom = sym_align(face, model3D, eyemask, predictor)
 
-        if verbose:
-            print '         Alignining face {}'.format(i)
-    else:
-        aface, ageom = ([], [])
-        if verbose:
-            print '         No face to align'
+    if verbose:
+        print '         Alignining face {}'.format(i)
+
     return aface, ageom

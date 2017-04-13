@@ -73,13 +73,16 @@ def extract_face(i, im, ext=1.1, sz=224, verbose=False):
         rect = [d for d in dets][0]
         geom = np.asarray([[rect.left(), rect.top()], [rect.left(), rect.bottom()],
                            [rect.right(), rect.top()], [rect.right(), rect.bottom()]])
-        face, geom, _ = extract(im, geom, extension=ext, size=sz)
+        face, _ , _ = extract(im, geom, extension=ext, size=sz)
 
         if verbose:
             print '         Extracting face {}'.format(i)
+
+        detected, face = (True, face)
     else:
         if verbose:
             print '         No face detected'
-        face = []
 
-    return face
+        detected, face =  (False, np.zeros((sz,sz)))
+
+    return detected, face
