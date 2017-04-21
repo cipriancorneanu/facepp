@@ -2,16 +2,13 @@ __author__ = 'cipriancorneanu'
 
 import cPickle
 import os
-
 import numpy as np
-
 from ..cascaded.toolkit import procrustes, pca, linalg
 from partitioner import concat
 
-
 def encode_parametric(uncoded):
     # Procrustes
-    _, tfms = procrustes.procrustes_generalized(uncoded, num_iter=5, verbose=True)
+    _, tfms = procrustes.procrustes_generalized(uncoded, num_iter=5)
 
     # Transform
     aligned_uncoded = np.reshape(linalg.transform_shapes(uncoded, tfms, inverse=True),

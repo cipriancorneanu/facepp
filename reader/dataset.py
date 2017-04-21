@@ -9,6 +9,8 @@ import getopt
 from facepp.frontalizer.check_resources import check_dlib_landmark_weights
 import dlib
 from facepp.frontalizer.frontalize import ThreeD_Model
+from facepp.processor.encoder import encode_parametric, concat
+from facepp.processor.partitioner import slice
 from extractor import extract, extract_face
 from reader import *
 import time
@@ -94,19 +96,25 @@ class ReaderFera2017():
         dt = {'geoms': [], 'occ':[], 'int':[], 'subjects':[], 'tasks':[], 'poses':[]}
 
         # If file does not exist load from original data
-        for subject in self.subjects:
-            for task in self.tasks:
+        for subject in self.subjects[:1]:
+            for task in self.tasks[:3]:
                 for pose in self.poses[5:6]:
                     fname_orig = path + 'fera17_' + subject + '_' + task + '_' + pose + '.pkl'
 
                     sequence = cPickle.load(open(fname_orig, 'rb'))
 
-                    dt['occ'].append(sequence['occ'])
-                    dt['int'].append(sequence['int'])
-                    dt['geoms'].append(sequence['geoms'])
+                    dt['occ'].append(sequence['occ'][0])
+                    dt['int'].append(sequence['int'][0])
+                    dt['geoms'].append(sequence['geoms'][0])
                     dt['subjects'].append(sequence['subjects'])
                     dt['tasks'].append(sequence['tasks'])
                     dt['poses'].append(sequence['poses'])
+
+        # Encode geometry
+        slices = slice(dt['geoms'])
+        geom = np.squeeze(np.concatenate([[x for x in item ] for item in  dt['geoms']]))
+        enc_geom, _, _ = encode_parametric(np.asarray(geom, dtype=np.float32))
+        dt['geoms'] = enc_geom
 
         cPickle.dump(dt, open(path+fname, 'wb'), cPickle.HIGHEST_PROTOCOL)
 
@@ -331,7 +339,6 @@ if __name__ == '__main__':
 
     fera = ReaderFera2017(path_fera2017)
     dt = fera.read_geom(path_fera2017 + 'aligned/', 'fera2017_geom.pkl')
-
 
 
     ims, geoms = (dt['ims'][0], dt['geoms'][0])

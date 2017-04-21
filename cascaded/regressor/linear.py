@@ -9,7 +9,7 @@ class RegressorLinear(Regressor):
 
     def learn(self, inputs, targets):
         inputs = np.concatenate((inputs, np.ones((inputs.shape[0], 1), dtype=np.float32)), axis=1)
-        reg = np.dot(np.linalg.pinv(inputs), targets)
+        reg = np.linalg.lstsq(inputs, targets)[0]
         self.weights = reg[:-1, :]
         self.bias = reg[None, -1, :]
         return np.dot(inputs, reg)

@@ -3,7 +3,6 @@ from descriptor import Descriptor
 import numpy as np
 from skimage.feature import hog
 
-
 class DescriptorSift(Descriptor):
     def __init__(self):
         Descriptor.__init__(self)
