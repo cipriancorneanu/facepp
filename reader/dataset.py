@@ -10,7 +10,7 @@ from facepp.frontalizer.check_resources import check_dlib_landmark_weights
 import dlib
 from facepp.frontalizer.frontalize import ThreeD_Model
 from facepp.processor.encoder import encode_parametric
-from facepp.processor.partitioner import slice, deconcat
+from facepp.processor import partitioner
 from extractor import extract, extract_face
 from reader import *
 import time
@@ -115,7 +115,7 @@ class ReaderFera2017():
         #cPickle.dump(dt, open(path+'fera_2017_geom.pkl', 'wb'), cPickle.HIGHEST_PROTOCOL)
 
         # Encode geometry
-        slices = slice(dt['geoms'])
+        slices = partitioner.slice(dt['geoms'])
         geom = np.squeeze(np.concatenate([[x for x in item ] for item in  dt['geoms']]))
         occ = np.squeeze(np.concatenate([[x for x in item ] for item in  dt['occ']]))
         int = np.squeeze(np.concatenate([[x for x in item ] for item in [np.transpose(x) for x in dt['int']]]))
@@ -134,9 +134,9 @@ class ReaderFera2017():
 
         enc_geom, _, _ = encode_parametric(np.asarray(geom, dtype=np.float32))
 
-        dt['geoms'] = deconcat(enc_geom, slices)
-        dt['occ'] = deconcat(occ, slices)
-        dt['int'] = deconcat(int, slices)
+        dt['geoms'] = partitioner.deconcat(enc_geom, slices)
+        dt['occ'] = partitioner.deconcat(occ, slices)
+        dt['int'] = partitioner.deconcat(int, slices)
 
         # Dump encoded geometry
         cPickle.dump(dt, open(path+fname, 'wb'), cPickle.HIGHEST_PROTOCOL)
