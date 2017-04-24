@@ -111,13 +111,34 @@ class ReaderFera2017():
                     dt['tasks'].append(sequence['tasks'])
                     dt['poses'].append(sequence['poses'])
 
+        # Dump geometry
+        #cPickle.dump(dt, open(path+'fera_2017_geom.pkl', 'wb'), cPickle.HIGHEST_PROTOCOL)
+
         # Encode geometry
         slices = slice(dt['geoms'])
         geom = np.squeeze(np.concatenate([[x for x in item ] for item in  dt['geoms']]))
-        enc_geom, _, _ = encode_parametric(np.asarray(geom, dtype=np.float32))
-        enc_geom = deconcat(enc_geom, slices)
-        dt['geoms'] = enc_geom
+        occ = np.squeeze(np.concatenate([[x for x in item ] for item in  dt['occ']]))
+        int = np.squeeze(np.concatenate([[x for x in item ] for item in [np.transpose(x) for x in dt['int']]]))
 
+        # Check failed frontalization
+        failed = np.asarray([i for i,x in enumerate(geom) if np.sum(x)==0])
+
+        # Filter failed frontalization
+        mask = np.ones(len(geom), dtype=bool)
+        mask[failed] = False
+        geom, occ, int = (geom[mask,...], occ[mask,...], int[mask,...])
+
+        #Filter slices
+        d = [[(i,np.where(slice==x)[0][0]) for i, slice in enumerate(slices) if x in slice] for x in failed]
+        for x in d: slices = self._update_slices(slices, x[0][0], x[0][1])
+
+        enc_geom, _, _ = encode_parametric(np.asarray(geom, dtype=np.float32))
+
+        dt['geoms'] = deconcat(enc_geom, slices)
+        dt['occ'] = deconcat(occ, slices)
+        dt['int'] = deconcat(int, slices)
+
+        # Dump encoded geometry
         cPickle.dump(dt, open(path+fname, 'wb'), cPickle.HIGHEST_PROTOCOL)
 
         return dt
@@ -125,6 +146,15 @@ class ReaderFera2017():
     def read_sift(self):
         pass
 
+    def _update_slices(slices, slice, idx):
+        prefix  = list(slices[:slice])
+        core = slices[slice]
+        sufix = slices[slice+1:]
+
+        core = list(np.reshape(core[:-1], (1, len(core[:-1]))))
+        sufix = [x-1 for x in sufix]
+
+        return prefix + core + sufix
 
     def _read_au_intensities(self, subject, task):
         dt = []
