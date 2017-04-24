@@ -25,7 +25,7 @@ class ReaderFera2017():
         self.path_int = path + 'int/'
         self.subjects = ['F001', 'F002', 'F003', 'F004', 'F005', 'F006', 'F007', 'F008', 'F009',
                          'F010', 'F011', 'F012', 'F013', 'F014', 'F015', 'F016', 'F017', 'F018', 'F019',
-                         'F020', 'F021', 'F022', 'F023'
+                         'F020', 'F021', 'F022', 'F023',
                          'M001', 'M002', 'M003', 'M004', 'M005', 'M006', 'M007', 'M008', 'M009',
                          'M010', 'M011', 'M012', 'M013', 'M014', 'M015', 'M016', 'M017', 'M018']
         self.tasks = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8']
@@ -100,6 +100,7 @@ class ReaderFera2017():
             for task in self.tasks:
                 for pose in self.poses[5:6]:
                     fname_orig = path + 'fera17_' + subject + '_' + task + '_' + pose + '.pkl'
+                    print 'Reading file {}'.format(fname_orig)
 
                     sequence = cPickle.load(open(fname_orig, 'rb'))
 
@@ -327,27 +328,3 @@ class ReaderDisfa():
 
     def _lm_file_sorter(self, files):
         return sorted(files)
-
-if __name__ == '__main__':
-    path_300vw = '/Users/cipriancorneanu/Research/data/300vw/'
-    path_pain = '/Users/cipriancorneanu/Research/data/pain/'
-    path_disfa = '/Users/cipriancorneanu/Research/data/disfa/'
-    path_server_pain = '/home/corneanu/data/pain/'
-    path_server_disfa = '/home/corneanu/data/disfa/'
-    path_ckplus = '/Users/cipriancorneanu/Research/data/ck/'
-    path_fera2017 = '/Users/cipriancorneanu/Research/data/fera2017/'
-    path_fera2017_server = '/data/hupba2/corneanu/data/fera2017/'
-    path_align_models = '/Users/cipriancorneanu/Research/code/facepp/models/'
-
-    fera = ReaderFera2017(path_fera2017_server)
-    dt = fera.read_geom(path_fera2017 + 'aligned/', 'fera2017_geom.pkl')
-
-    '''
-    ims, geoms = (dt['ims'][0], dt['geoms'][0])
-
-    for i, (im, geom) in enumerate(zip(ims, geoms)):
-        plt.imshow(im)
-        plt.scatter(geom[:, 0], geom[:, 1])
-        plt.savefig('/Users/cipriancorneanu/Research/data/fera2017/results/' + str(i) + '.png')
-        plt.clf()
-    '''
