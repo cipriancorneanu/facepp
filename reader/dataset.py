@@ -9,8 +9,8 @@ import getopt
 from facepp.frontalizer.check_resources import check_dlib_landmark_weights
 import dlib
 from facepp.frontalizer.frontalize import ThreeD_Model
-from facepp.processor.encoder import encode_parametric, concat
-from facepp.processor.partitioner import slice
+from facepp.processor.encoder import encode_parametric
+from facepp.processor.partitioner import slice, deconcat
 from extractor import extract, extract_face
 from reader import *
 import time
@@ -96,8 +96,8 @@ class ReaderFera2017():
         dt = {'geoms': [], 'occ':[], 'int':[], 'subjects':[], 'tasks':[], 'poses':[]}
 
         # If file does not exist load from original data
-        for subject in self.subjects[:1]:
-            for task in self.tasks[:3]:
+        for subject in self.subjects:
+            for task in self.tasks:
                 for pose in self.poses[5:6]:
                     fname_orig = path + 'fera17_' + subject + '_' + task + '_' + pose + '.pkl'
 
@@ -114,6 +114,7 @@ class ReaderFera2017():
         slices = slice(dt['geoms'])
         geom = np.squeeze(np.concatenate([[x for x in item ] for item in  dt['geoms']]))
         enc_geom, _, _ = encode_parametric(np.asarray(geom, dtype=np.float32))
+        enc_geom = deconcat(enc_geom, slices)
         dt['geoms'] = enc_geom
 
         cPickle.dump(dt, open(path+fname, 'wb'), cPickle.HIGHEST_PROTOCOL)
@@ -335,12 +336,13 @@ if __name__ == '__main__':
     path_server_disfa = '/home/corneanu/data/disfa/'
     path_ckplus = '/Users/cipriancorneanu/Research/data/ck/'
     path_fera2017 = '/Users/cipriancorneanu/Research/data/fera2017/'
+    path_fera2017_server = '/data/hupba2/corneanu/data/fera2017/'
     path_align_models = '/Users/cipriancorneanu/Research/code/facepp/models/'
 
-    fera = ReaderFera2017(path_fera2017)
+    fera = ReaderFera2017(path_fera2017_server)
     dt = fera.read_geom(path_fera2017 + 'aligned/', 'fera2017_geom.pkl')
 
-
+    '''
     ims, geoms = (dt['ims'][0], dt['geoms'][0])
 
     for i, (im, geom) in enumerate(zip(ims, geoms)):
@@ -348,3 +350,4 @@ if __name__ == '__main__':
         plt.scatter(geom[:, 0], geom[:, 1])
         plt.savefig('/Users/cipriancorneanu/Research/data/fera2017/results/' + str(i) + '.png')
         plt.clf()
+    '''
