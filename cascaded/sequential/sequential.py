@@ -39,7 +39,7 @@ class Sequential:
         self.save(save_file)
 
     def test(self, sequences, geometries):
-        # Initialize return geometries, prepare results matrices
+        # Initialize return geometries, prepare results_disfa matrices
         self.geometries = np.copy(geometries)
         geometries = [np.concatenate((g[None, ...], np.empty(
             (s.shape[0]-1,)+g.shape, dtype=np.float32
@@ -67,7 +67,7 @@ class Sequential:
         # Prepare geometries of first frames
         self.geometries = np.array([g[0, ...] for g in geometries])
 
-        # Prepare results matrices & sequence lengths
+        # Prepare results_disfa matrices & sequence lengths
         predictions = [np.empty((g.shape[0]-1,)+g.shape[1:], dtype=np.float32) for g in geometries]
         seq_lens = np.array([g.shape[0] for g in geometries])
 

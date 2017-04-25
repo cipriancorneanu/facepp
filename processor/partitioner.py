@@ -82,4 +82,4 @@ if __name__ == '__main__':
         plt.plot(g1[:,0], g1[:,1])
         plt.plot(g2[:,0], g2[:,1])
 
-    plt.savefig('/Users/cipriancorneanu/Research/code/afea/results/geoms.png')
+    plt.savefig('/Users/cipriancorneanu/Research/code/afea/results_disfa/geoms.png')

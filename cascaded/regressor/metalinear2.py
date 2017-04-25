@@ -18,7 +18,7 @@ class RegressorMetalinear2(Regressor):
         b = np.dot(np.transpose(khatri_rprod), targets)
         self.m_weights = np.dot(a, b)
 
-        # Calculate fit results with k-fold cross-validation
+        # Calculate fit results_disfa with k-fold cross-validation
         preds, s_f, s_t = np.empty(targets.shape, dtype=np.float32), khatri_rprod.shape[1], self.n_targets
         for i in range(np.max(indices) + 1):
             i_valid = np.where(indices == i)

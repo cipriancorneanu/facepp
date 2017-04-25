@@ -11,7 +11,7 @@ class RegressorMetalinearFsen(RegressorMetalinear):
         n_inst, n_folds = np.max(indices)+1, 25
         b_size = n_inst / n_folds
 
-        # Allocate fit results
+        # Allocate fit results_disfa
         r_prev, r_new = np.empty(targets.shape, dtype=np.float32), np.zeros(targets.shape, dtype=np.float32)
 
         self.n_bases, error = 0, 1 * (10 ** 8)

@@ -9,7 +9,7 @@ class Descriptor:
             images = images.reshape((1,)+images.shape)
             coords = coords.reshape((1,)+coords.shape)
 
-        # Call feature initializer and return results
+        # Call feature initializer and return results_disfa
         return getattr(self, '_initialize')(images, coords, mapping, args)
 
     def extract(self, images, coords, mapping, args=None):
@@ -19,7 +19,7 @@ class Descriptor:
             images = images.reshape((1,)+images.shape)
             coords = coords.reshape((1,)+coords.shape)
 
-        # Call feature extractor and return results
+        # Call feature extractor and return results_disfa
         return getattr(self, '_extract')(images, coords, mapping, args)
 
     def _initialize(self, images, coords, mapping, args):

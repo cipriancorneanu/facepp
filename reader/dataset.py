@@ -146,7 +146,7 @@ class ReaderFera2017():
     def read_sift(self):
         pass
 
-    def _update_slices(slices, slice, idx):
+    def _update_slices(self, slices, slice, idx):
         prefix  = list(slices[:slice])
         core = slices[slice]
         sufix = slices[slice+1:]

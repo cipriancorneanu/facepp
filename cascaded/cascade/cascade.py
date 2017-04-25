@@ -18,7 +18,7 @@ class Cascade:
         self.num_steps, self.num_landmarks, self.num_dimensions = (0, None, None)
         self.steps = []
 
-        # Initialize storage for intermediate training results
+        # Initialize storage for intermediate training results_disfa
         self._train_params, self._train_mapping = None, None
 
         # Import regressor
@@ -51,7 +51,7 @@ class Cascade:
         # Encode ground truth
         ground_truth = getattr(self, 'encoder').encode_parameters(ground_truth)
 
-        # Apply already learned cascade steps (if intermediate results not present or not used)
+        # Apply already learned cascade steps (if intermediate results_disfa not present or not used)
         if not continue_previous or self._train_params is None:
             self._train_params, self._train_mapping = self.align(
                 images,
@@ -105,7 +105,7 @@ class Cascade:
             params = params if isinstance(params, tuple) else (params,)
             ret[i] = (np.copy(params[0]),)+params[1:] if save_all else None
 
-        # Return results
+        # Return results_disfa
         return (ret if save_all else params[0]), mapping
 
     # Abstract methods

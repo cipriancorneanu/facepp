@@ -49,7 +49,7 @@ def plot_t_series(axarr, t_series, labels):
 
     return axarr
 
-def plot_complete_weighted_graph(axis, node_labels, edge_weights):
+def plot_complete_weighted_graph(axis, edge_weights, node_labels):
     n_nodes = len(node_labels)
     G = nx.complete_graph(n_nodes)
     pos = nx.circular_layout(G) # positions for all nodes
