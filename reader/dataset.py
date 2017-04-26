@@ -33,7 +33,12 @@ class ReaderFera2017():
         self.aus = [1, 4, 6, 7, 10, 12, 14, 15, 17, 23]
         self.aus_int = ['AU01', 'AU04', 'AU06', 'AU10', 'AU12', 'AU14', 'AU17']
 
-    def read(self, opath, mpath, poses=[6], cores=4):
+    def read(self, opath, mpath, partition = 'train', poses=[6], cores=4):
+        if partition == 'train':
+            fname_root = 'FERA17_TR_'
+        elif partition == 'validation':
+            fname_root = 'FERA17_VA_'
+
         print 'List of selected subjects: {}'.format(self.subjects)
 
         # Load models
@@ -47,8 +52,8 @@ class ReaderFera2017():
             for task in self.tasks:
                 for pose in poses:
                     start_time = time.time()
-                    vidname = self.path_ims + 'FERA17_TR_' + subject + '_' + task + '_' + str(pose) + '.mp4'
-                    occname = self.path_occ + 'FERA17_TR_' + subject + '_' + task + '.csv'
+                    vidname = self.path_ims + fname_root + subject + '_' + task + '_' + str(pose) + '.mp4'
+                    occname = self.path_occ + fname_root + subject + '_' + task + '.csv'
 
                     # Read video
                     if os.path.exists(vidname) and os.path.exists(occname):
@@ -116,9 +121,9 @@ class ReaderFera2017():
 
         # Encode geometry
         slices = partitioner.slice(dt['geoms'])
-        geom = np.squeeze(np.concatenate([[x for x in item ] for item in  dt['geoms']]))
-        occ = np.squeeze(np.concatenate([[x for x in item ] for item in  dt['occ']]))
-        int = np.squeeze(np.concatenate([[x for x in item ] for item in [np.transpose(x) for x in dt['int']]]))
+        geom = np.squeeze(np.concatenate([[x for x in item] for item in  dt['geoms']]))
+        occ = np.squeeze(np.concatenate([[x for x in item] for item in  dt['occ']]))
+        int = np.squeeze(np.concatenate([[x for x in item] for item in [np.transpose(x) for x in dt['int']]]))
 
         # Check failed frontalization
         failed = np.asarray([i for i,x in enumerate(geom) if np.sum(x)==0])
@@ -130,7 +135,7 @@ class ReaderFera2017():
 
         #Filter slices
         d = [[(i,np.where(slice==x)[0][0]) for i, slice in enumerate(slices) if x in slice] for x in failed]
-        for x in d: slices = self._update_slices(slices, x[0][0], x[0][1])
+        for x in d: slices = update_slices(slices, x[0][0], x[0][1])
 
         enc_geom, _, _ = encode_parametric(np.asarray(geom, dtype=np.float32))
 
@@ -146,16 +151,6 @@ class ReaderFera2017():
     def read_sift(self):
         pass
 
-    def _update_slices(self, slices, slice, idx):
-        prefix  = list(slices[:slice])
-        core = slices[slice]
-        sufix = slices[slice+1:]
-
-        core = list(np.reshape(core[:-1], (1, len(core[:-1]))))
-        sufix = [x-1 for x in sufix]
-
-        return prefix + core + sufix
-
     def _read_au_intensities(self, subject, task):
         dt = []
         for au in self.aus_int:
@@ -167,6 +162,46 @@ class ReaderFera2017():
     def _get_subjects(self):
         fnames = [f for f in os.listdir(self.path_ims) if f.endswith('.mp4')]
         return list(set([re.split('_', f)[2] for f in fnames]))
+
+def update_slices(slices, slice, idx):
+    prefix  = list(slices[:slice])
+    core = slices[slice]
+    sufix = slices[slice+1:]
+
+    core = list(np.reshape(core[:-1], (1, len(core[:-1]))))
+    sufix = [x-1 for x in sufix]
+
+    return prefix + core + sufix
+
+# TODO: include in here
+def normalize_fera_geom(path):
+    path = '/Users/cipriancorneanu/Research/data/fera2017/aligned/'
+    dt = cPickle.load(open(path+'fera2017_geom.pkl', 'rb'))
+
+    # Encode geometry
+    slices = partitioner.slice(dt['geoms'])
+    geom = np.squeeze(np.concatenate([[x for x in item] for item in  dt['geoms']]))
+    occ = np.squeeze(np.concatenate([[x for x in item] for item in  dt['occ']]))
+    int = np.squeeze(np.concatenate([[x for x in item] for item in [np.transpose(x) for x in dt['int']]]))
+
+    # Check failed frontalization
+    failed = np.asarray([i for i,x in enumerate(geom) if np.sum(x)==0])
+
+    # Filter failed frontalization
+    mask = np.ones(len(geom), dtype=bool)
+    mask[failed] = False
+    geom, occ, int = (geom[mask,...], occ[mask,...], int[mask,...])
+
+    # Filter slices
+    d = [[(i,np.where(slice==x)[0][0]) for i, slice in enumerate(slices) if x in slice] for x in failed]
+    for x in d: slices = update_slices(slices, x[0][0], x[0][1])
+
+    # Procrustes
+    _, tfms = procrustes.procrustes_generalized(geom, num_iter=1)
+
+    # Transform
+    aligned_uncoded = np.reshape(linalg.transform_shapes(geom, tfms, inverse=True),
+                                (geom.shape[0], -1))
 
 class ReaderCKplus():
     def __init__(self, path):
