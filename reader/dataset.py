@@ -30,9 +30,9 @@ class ReaderFera2017():
 
     def read(self, opath, mpath, partition = 'train', poses=[6], cores=4):
         if partition == 'train':
-            fname_root = 'FERA17_TR_'
+            root = 'FERA17_TR_'
         elif partition == 'validation':
-            fname_root = 'FERA17_VA_'
+            root = 'FERA17_VA_'
 
         print 'List of selected subjects: {}'.format(self.subjects)
 
@@ -47,8 +47,8 @@ class ReaderFera2017():
             for task in self._get_tasks(subject):
                 for pose in poses:
                     start_time = time.time()
-                    vidname = self.path_ims + fname_root + subject + '_' + task + '_' + str(pose) + '.mp4'
-                    occname = self.path_occ + fname_root + subject + '_' + task + '.csv'
+                    vidname = self.path_ims + root + subject + '_' + task + '_' + str(pose) + '.mp4'
+                    occname = self.path_occ + root + subject + '_' + task + '.csv'
 
                     # Read video
                     if os.path.exists(vidname) and os.path.exists(occname):
@@ -58,7 +58,7 @@ class ReaderFera2017():
                         print 'Reading video file {} in {}s'.format(vidname, (time.time() - start_time))
 
                         occ = read_csv(occname)
-                        int = self._read_au_intensities(subject, task)
+                        int = self._read_au_intensities(root, subject, task)
 
                         print '     Extract faces and resize '
                         faces = Parallel(n_jobs=cores)(delayed(extract_face)(i,im) for i,im in enumerate(ims))
@@ -141,11 +141,12 @@ class ReaderFera2017():
     def read_sift(self):
         pass
 
-    def _read_au_intensities(self, subject, task):
-        dt = []
+    def _read_au_intensities(self, root, subject, task):
+        dt = [None] * len(self.aus_int)
         for au in self.aus_int:
-            fname = self.path_int + 'FERA17_TR_' + subject + '_' + task + '_' + au + '_Int.csv'
-            dt.append([x[1] for x in read_csv(fname)])
+            fname = self.path_int + root + subject + '_' + task + '_' + au + '_Int.csv'
+            if os.path.exists(fname):
+                dt.append([x[1] for x in read_csv(fname)])
 
         return np.asarray(dt)
 
