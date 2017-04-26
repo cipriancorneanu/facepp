@@ -23,12 +23,7 @@ class ReaderFera2017():
         self.path_ims = path + 'ims/'
         self.path_occ = path + 'occ/'
         self.path_int = path + 'int/'
-        self.subjects = ['F001', 'F002', 'F003', 'F004', 'F005', 'F006', 'F007', 'F008', 'F009',
-                         'F010', 'F011', 'F012', 'F013', 'F014', 'F015', 'F016', 'F017', 'F018', 'F019',
-                         'F020', 'F021', 'F022', 'F023',
-                         'M001', 'M002', 'M003', 'M004', 'M005', 'M006', 'M007', 'M008', 'M009',
-                         'M010', 'M011', 'M012', 'M013', 'M014', 'M015', 'M016', 'M017', 'M018']
-        self.tasks = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8']
+        self.subjects = self._get_subjects()
         self.poses = [str(i) for i in range(1,10)]
         self.aus = [1, 4, 6, 7, 10, 12, 14, 15, 17, 23]
         self.aus_int = ['AU01', 'AU04', 'AU06', 'AU10', 'AU12', 'AU14', 'AU17']
@@ -49,7 +44,7 @@ class ReaderFera2017():
 
         # Get list of subjects
         for subject in self.subjects:
-            for task in self.tasks:
+            for task in self._get_tasks(subject):
                 for pose in poses:
                     start_time = time.time()
                     vidname = self.path_ims + fname_root + subject + '_' + task + '_' + str(pose) + '.mp4'
@@ -72,11 +67,6 @@ class ReaderFera2017():
                         aligned = [align(i, face, model3D, eyemask, predictor) if face_detected
                                    else (np.zeros((face.shape[0], face.shape[1], 3)), np.zeros((68,2)))
                                    for i,(face_detected,face) in enumerate(faces)]
-
-                        '''
-                        aligned = Parallel(n_jobs=2)(delayed(align)(i, face, model3D, eyemask, predictor)
-                                                                    for i,face in enumerate(faces)
-                        '''
 
                         afaces, ageoms = (np.asarray([x[0] for x in aligned], dtype=np.uint8),
                                           np.asarray([x[1] for x in aligned], dtype=np.float16))
@@ -162,6 +152,11 @@ class ReaderFera2017():
     def _get_subjects(self):
         fnames = [f for f in os.listdir(self.path_ims) if f.endswith('.mp4')]
         return list(set([re.split('_', f)[2] for f in fnames]))
+
+    def _get_tasks(self, subject):
+        fnames = [f for f in os.listdir(self.path_ims) if subject in f and f.endswith('.mp4')]
+        return list(set([re.split('_', f)[3] for f in fnames]))
+
 
 def update_slices(slices, slice, idx):
     prefix  = list(slices[:slice])
