@@ -23,7 +23,6 @@ class ReaderFera2017():
         self.path_ims = path + 'ims/'
         self.path_occ = path + 'occ/'
         self.path_int = path + 'int/'
-        self.subjects = self._get_subjects()
         self.poses = [str(i) for i in range(1,10)]
         self.aus = [1, 4, 6, 7, 10, 12, 14, 15, 17, 23]
         self.aus_int = ['AU01', 'AU04', 'AU06', 'AU10', 'AU12', 'AU14', 'AU17']
@@ -34,7 +33,8 @@ class ReaderFera2017():
         elif partition == 'validation':
             root = 'FERA17_VA_'
 
-        print 'List of selected subjects: {}'.format(self.subjects)
+        subjects = self._get_subjects()
+        print 'List of selected subjects: {}'.format(subjects)
 
         # Load models
         check_dlib_landmark_weights(mpath + 'shape_predictor_models')
@@ -43,7 +43,8 @@ class ReaderFera2017():
         eyemask = np.asarray(io.loadmat(mpath + 'frontalization_models/eyemask.mat')['eyemask'])
 
         # Get list of subjects
-        for subject in self.subjects:
+        for subject in subjects:
+            print 'List of selected tasks for subject {}: {}'.format(subject, self._get_tasks(subject))
             for task in self._get_tasks(subject):
                 for pose in poses:
                     start_time = time.time()
@@ -88,11 +89,12 @@ class ReaderFera2017():
         if os.path.exists(path + fname):
             return cPickle.load(open(path+fname, 'rb'))
 
+        subjects = self._get_subjects()
         dt = {'geoms': [], 'occ':[], 'int':[], 'subjects':[], 'tasks':[], 'poses':[]}
 
         # If file does not exist load from original data
-        for subject in self.subjects:
-            for task in self.tasks:
+        for subject in subjects:
+            for task in self._get_tasks(subject):
                 for pose in self.poses[5:6]:
                     fname_orig = path + 'fera17_' + subject + '_' + task + '_' + pose + '.pkl'
                     print 'Reading file {}'.format(fname_orig)
@@ -138,6 +140,71 @@ class ReaderFera2017():
 
         return dt
 
+    def read_batches(self, N):
+        subjects = self._get_subjects()
+        dt = {'geoms': [], 'occ':[], 'int':[], 'subjects':[], 'tasks':[], 'poses':[]}
+
+        # If file does not exist load from original data
+        print 'List of selected subjects {}'.format(subjects)
+        for subject in subjects:
+            print 'List of selected tasks for subject {}: {}'.format(subject, self._get_tasks(subject))
+            for task in self._get_tasks(subject):
+                for pose in self.poses[5:6]:
+                    fname_orig = path + 'fera17_' + subject + '_' + task + '_' + pose + '.pkl'
+                    print 'Reading file {}'.format(fname_orig)
+
+                    sequence = cPickle.load(open(fname_orig, 'rb'))
+
+                    dt['ims'].append(sequence['ims'][0])
+                    dt['occ'].append(sequence['occ'][0])
+                    dt['int'].append(sequence['int'][0])
+                    dt['geoms'].append(sequence['geoms'][0])
+                    dt['subjects'].append(sequence['subjects'])
+                    dt['tasks'].append(sequence['tasks'])
+                    dt['poses'].append(sequence['poses'])
+
+        # Process data
+        slices = partitioner.slice(dt['geoms'])
+        ims = np.squeeze(np.concatenate([[x for x in item] for item in  dt['ims']]))
+        geom = np.squeeze(np.concatenate([[x for x in item] for item in  dt['geoms']]))
+        occ = np.squeeze(np.concatenate([[x for x in item] for item in  dt['occ']]))
+        int = np.squeeze(np.concatenate([[x for x in item] for item in [np.transpose(x) for x in dt['int']]]))
+
+        # Filter out junk
+        slices, geom, occ, int = self.filter_junk(slices, geom, occ, int)
+
+        batches = self.sequences2batches(slices, n_batches=N)
+
+        '''
+        batches = [None]*N
+        for (fname, bat) in zip(batches, dt['ims'], , , ):
+            print fname
+        '''
+
+        # Dump batches
+        for i, bat in enumerate(batches):
+            cPickle.dump(bat, open(path+'fera17_train_' + str(i), 'wb'), cPickle.HIGHEST_PROTOCOL)
+
+        return dt
+
+    def filter_junk(self, slices, geom, occ, int):
+        # Check failed frontalization
+        failed = np.asarray([i for i,x in enumerate(geom) if np.sum(x)==0])
+
+        # Filter failed frontalization
+        mask = np.ones(len(geom), dtype=bool)
+        mask[failed] = False
+        geom, occ, int = (geom[mask,...], occ[mask,...], int[mask,...])
+
+        #Filter slices
+        d = [[(i,np.where(slice==x)[0][0]) for i, slice in enumerate(slices) if x in slice] for x in failed]
+        for x in d: slices = update_slices(slices, x[0][0], x[0][1])
+
+        return slices, geom, occ, int
+
+    def sequences2batches(self, slices, n_batches=10):
+        return partitioner.deconcat(np.random.randint(0, n_batches, len(np.concateante(slices))), slices)
+
     def read_sift(self):
         pass
 
@@ -152,11 +219,11 @@ class ReaderFera2017():
 
     def _get_subjects(self):
         fnames = [f for f in os.listdir(self.path_ims) if f.endswith('.mp4')]
-        return list(set([re.split('_', f)[2] for f in fnames]))
+        return sorted(list(set([re.split('_', f)[2] for f in fnames])))
 
     def _get_tasks(self, subject):
         fnames = [f for f in os.listdir(self.path_ims) if subject in f and f.endswith('.mp4')]
-        return list(set([re.split('_', f)[3] for f in fnames]))
+        return sorted(list(set([re.split('_', f)[3] for f in fnames])))
 
 
 def update_slices(slices, slice, idx):
@@ -389,3 +456,11 @@ class ReaderDisfa():
 
     def _lm_file_sorter(self, files):
         return sorted(files)
+
+if __name__ == '__main__':
+    path = '/Users/cipriancorneanu/Research/data/fera2017/aligned/'
+    reader = ReaderFera2017(path)
+
+    batches = reader.sequences2batches(n_batches=10)
+
+    pass
