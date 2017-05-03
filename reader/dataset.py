@@ -156,6 +156,10 @@ class ReaderFera2017():
                 print 'Load sequence {}'.format(f)
                 seq = cPickle.load(open(self.path + '/aligned/' + f, 'rb'))
 
+                #Filter junk
+                slices = partitioner.slice(seq['geoms'][0])
+                slices, geom, occ, int = self.filter_junk(slices, seq['geoms'][0], seq['occ'][0], seq['int'][0])
+
                 dt['ims'].append(seq['ims'][0])
                 dt['geoms'].append(seq['geoms'][0])
                 dt['occ'].append(seq['occ'][0])
@@ -186,17 +190,20 @@ class ReaderFera2017():
         return dt
 
     def filter_junk(self, slices, geom, occ, int):
+
         # Check failed frontalization
         failed = np.asarray([i for i,x in enumerate(geom) if np.sum(x)==0])
 
+        print 'Filering {} junk samples'.format(len(failed))
         # Filter failed frontalization
-        mask = np.ones(len(geom), dtype=bool)
-        mask[failed] = False
-        geom, occ, int = (geom[mask,...], occ[mask,...], int[mask,...])
+        if failed:
+            mask = np.ones(len(geom), dtype=bool)
+            mask[failed] = False
+            geom, occ, int = (geom[mask,...], occ[mask,...], int[mask,...])
 
-        #Filter slices
-        d = [[(i,np.where(slice==x)[0][0]) for i, slice in enumerate(slices) if x in slice] for x in failed]
-        for x in d: slices = update_slices(slices, x[0][0], x[0][1])
+            #Filter slices
+            d = [[(i,np.where(slice==x)[0][0]) for i, slice in enumerate(slices) if x in slice] for x in failed]
+            for x in d: slices = update_slices(slices, x[0][0], x[0][1])
 
         return slices, geom, occ, int
 
