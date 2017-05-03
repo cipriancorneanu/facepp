@@ -167,20 +167,21 @@ class ReaderFera2017():
 
             # Shuffle
             L = len(np.concatenate(dt['occ']))
+            print 'There are {} samples in this batch'.format(L)
             shuffle = range(0,L)
             np.random.shuffle(shuffle)
 
             dt['ims'] = np.concatenate(dt['ims'])[shuffle]
             dt['geoms'] = np.concatenate(dt['geoms'])[shuffle]
             dt['occ'] = np.concatenate(dt['occ'])[shuffle]
-            print np.transpose(np.concatenate(dt['int'], axis=1)).shape
             dt['int'] = np.transpose(np.concatenate(dt['int'], axis=1))[shuffle]
             dt['subjects'] = np.concatenate(dt['subjects'])[shuffle]
             dt['tasks'] = np.concatenate(dt['tasks'])[shuffle]
             dt['poses'] = np.concatenate(dt['poses'])[shuffle]
 
             # Dump batches
-            cPickle.dump(dt, open(path+'/fera17_train_' + str(bat), 'wb'), cPickle.HIGHEST_PROTOCOL)
+            print 'Dumping batch {}'.format(bat)
+            cPickle.dump(dt, open(self.path+'/fera17_train_' + str(bat), 'wb'), cPickle.HIGHEST_PROTOCOL)
 
         return dt
 
