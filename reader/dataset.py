@@ -141,49 +141,46 @@ class ReaderFera2017():
         return dt
 
     def read_batches(self, N):
-        subjects = self._get_subjects()
-        dt = {'geoms': [], 'occ':[], 'int':[], 'subjects':[], 'tasks':[], 'poses':[]}
+        fnames = [f for f in os.listdir(self.path + '/aligned') if f.startswith('fera17') and f.endswith('.pkl')]
 
-        # If file does not exist load from original data
-        print 'List of selected subjects {}'.format(subjects)
-        for subject in subjects:
-            print 'List of selected tasks for subject {}: {}'.format(subject, self._get_tasks(subject))
-            for task in self._get_tasks(subject):
-                for pose in self.poses[5:6]:
-                    fname_orig = path + 'fera17_' + subject + '_' + task + '_' + pose + '.pkl'
-                    print 'Reading file {}'.format(fname_orig)
+        # Load batches
+        idxs = np.random.randint(0, N, len(fnames))
+        print idxs
 
-                    sequence = cPickle.load(open(fname_orig, 'rb'))
+        for bat in range(0, N):
+            print 'Loading batch {}'.format(bat)
+            bat_fnames = [fnames[i] for i in np.where(idxs==bat)[0]]
 
-                    dt['ims'].append(sequence['ims'][0])
-                    dt['occ'].append(sequence['occ'][0])
-                    dt['int'].append(sequence['int'][0])
-                    dt['geoms'].append(sequence['geoms'][0])
-                    dt['subjects'].append(sequence['subjects'])
-                    dt['tasks'].append(sequence['tasks'])
-                    dt['poses'].append(sequence['poses'])
+            dt = {'ims': [],'geoms': [], 'occ':[], 'int':[], 'subjects':[], 'tasks':[], 'poses':[]}
+            for f in bat_fnames:
+                print 'Load sequence {}'.format(f)
+                seq = cPickle.load(open(self.path + '/aligned/' + f, 'rb'))
 
-        # Process data
-        slices = partitioner.slice(dt['geoms'])
-        ims = np.squeeze(np.concatenate([[x for x in item] for item in  dt['ims']]))
-        geom = np.squeeze(np.concatenate([[x for x in item] for item in  dt['geoms']]))
-        occ = np.squeeze(np.concatenate([[x for x in item] for item in  dt['occ']]))
-        int = np.squeeze(np.concatenate([[x for x in item] for item in [np.transpose(x) for x in dt['int']]]))
+                dt['ims'].append(seq['ims'][0])
+                dt['geoms'].append(seq['geoms'][0])
+                dt['occ'].append(seq['occ'][0])
+                dt['int'].append(seq['int'][0])
 
-        # Filter out junk
-        slices, geom, occ, int = self.filter_junk(slices, geom, occ, int)
+                dt['subjects'].append([seq['subjects'][0] for i in range(0, len(seq['occ'][0]))])
+                dt['tasks'].append([seq['tasks'][0] for i in range(0, len(seq['occ'][0]))])
+                dt['poses'].append([seq['poses'][0] for i in range(0, len(seq['occ'][0]))])
 
-        batches = self.sequences2batches(slices, n_batches=N)
+            # Shuffle
+            L = len(np.concatenate(dt['occ']))
+            shuffle = range(0,L)
+            np.random.shuffle(shuffle)
 
-        '''
-        batches = [None]*N
-        for (fname, bat) in zip(batches, dt['ims'], , , ):
-            print fname
-        '''
+            dt['ims'] = np.concatenate(dt['ims'])[shuffle]
+            dt['geoms'] = np.concatenate(dt['geoms'])[shuffle]
+            dt['occ'] = np.concatenate(dt['occ'])[shuffle]
+            print np.transpose(np.concatenate(dt['int'], axis=1)).shape
+            dt['int'] = np.transpose(np.concatenate(dt['int'], axis=1))[shuffle]
+            dt['subjects'] = np.concatenate(dt['subjects'])[shuffle]
+            dt['tasks'] = np.concatenate(dt['tasks'])[shuffle]
+            dt['poses'] = np.concatenate(dt['poses'])[shuffle]
 
-        # Dump batches
-        for i, bat in enumerate(batches):
-            cPickle.dump(bat, open(path+'fera17_train_' + str(i), 'wb'), cPickle.HIGHEST_PROTOCOL)
+            # Dump batches
+            cPickle.dump(dt, open(path+'/fera17_train_' + str(bat), 'wb'), cPickle.HIGHEST_PROTOCOL)
 
         return dt
 
@@ -458,9 +455,7 @@ class ReaderDisfa():
         return sorted(files)
 
 if __name__ == '__main__':
-    path = '/Users/cipriancorneanu/Research/data/fera2017/aligned/'
+    path = '/Users/cipriancorneanu/Research/data/fera2017'
     reader = ReaderFera2017(path)
 
-    batches = reader.sequences2batches(n_batches=10)
-
-    pass
+    reader.read_batches(2)
