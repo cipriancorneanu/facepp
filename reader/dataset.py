@@ -2,10 +2,8 @@ __author__ = 'cipriancorneanu'
 
 import re
 from facepp.processor.aligner import align
-import matplotlib.pyplot as plt
 import cPickle
 import scipy.io as io
-import getopt
 from facepp.frontalizer.check_resources import check_dlib_landmark_weights
 import dlib
 from facepp.frontalizer.frontalize import ThreeD_Model
@@ -15,7 +13,6 @@ from extractor import extract, extract_face
 from reader import *
 import time
 from joblib import Parallel, delayed
-import multiprocessing
 
 class ReaderFera2017():
     def __init__(self, path):
@@ -89,51 +86,29 @@ class ReaderFera2017():
         if os.path.exists(path + fname):
             return cPickle.load(open(path+fname, 'rb'))
 
-        subjects = self._get_subjects()
-        dt = {'geoms': [], 'occ':[], 'int':[], 'subjects':[], 'tasks':[], 'poses':[]}
+        fnames = [f for f in os.listdir(self.path + '/aligned') if f.startswith('fera17') and f.endswith('.pkl')]
+        dt = {'ims': [], 'geoms': [], 'occ':[], 'int':[], 'subjects':[], 'tasks':[], 'poses':[]}
 
-        # If file does not exist load from original data
-        for subject in subjects:
-            for task in self._get_tasks(subject):
-                for pose in self.poses[5:6]:
-                    fname_orig = path + 'fera17_' + subject + '_' + task + '_' + pose + '.pkl'
-                    print 'Reading file {}'.format(fname_orig)
+        # If geom file does not exist load from original data
+        for f in fnames:
+            print 'Reading file {}'.format(f)
 
-                    sequence = cPickle.load(open(fname_orig, 'rb'))
+            seq = cPickle.load(open(self.path + '/aligned/' + f, 'rb'))
 
-                    dt['occ'].append(sequence['occ'][0])
-                    dt['int'].append(sequence['int'][0])
-                    dt['geoms'].append(sequence['geoms'][0])
-                    dt['subjects'].append(sequence['subjects'])
-                    dt['tasks'].append(sequence['tasks'])
-                    dt['poses'].append(sequence['poses'])
+            ims, geoms, occ, int = self._filter_junk(np.asarray(seq['ims'][0], dtype=np.uint8),
+                                                               np.asarray(seq['geoms'][0], dtype=np.float16),
+                                                               np.asarray(seq['occ'][0], dtype=np.uint8),
+                                                               np.transpose(np.asarray(seq['int'][0], dtype=np.uint8)))
 
-        # Dump geometry
-        #cPickle.dump(dt, open(path+'fera_2017_geom.pkl', 'wb'), cPickle.HIGHEST_PROTOCOL)
+            dt = self._accumulate_data(dt, ims = [], geoms = geoms, occ = occ,
+                                        int = int, subjects = seq['subjects'],
+                                        tasks = seq['tasks'], poses = seq['poses'])
+
 
         # Encode geometry
-        slices = partitioner.slice(dt['geoms'])
-        geom = np.squeeze(np.concatenate([[x for x in item] for item in  dt['geoms']]))
-        occ = np.squeeze(np.concatenate([[x for x in item] for item in  dt['occ']]))
-        int = np.squeeze(np.concatenate([[x for x in item] for item in [np.transpose(x) for x in dt['int']]]))
-
-        # Check failed frontalization
-        failed = np.asarray([i for i,x in enumerate(geom) if np.sum(x)==0])
-
-        # Filter failed frontalization
-        mask = np.ones(len(geom), dtype=bool)
-        mask[failed] = False
-        geom, occ, int = (geom[mask,...], occ[mask,...], int[mask,...])
-
-        #Filter slices
-        d = [[(i,np.where(slice==x)[0][0]) for i, slice in enumerate(slices) if x in slice] for x in failed]
-        for x in d: slices = update_slices(slices, x[0][0], x[0][1])
-
-        enc_geom, _, _ = encode_parametric(np.asarray(geom, dtype=np.float32))
-
+        geoms, slices = partitioner.concat(dt['geoms'])
+        enc_geom, _, _ = encode_parametric(np.asarray(geoms, dtype=np.float32))
         dt['geoms'] = partitioner.deconcat(enc_geom, slices)
-        dt['occ'] = partitioner.deconcat(occ, slices)
-        dt['int'] = partitioner.deconcat(int, slices)
 
         # Dump encoded geometry
         cPickle.dump(dt, open(path+fname, 'wb'), cPickle.HIGHEST_PROTOCOL)
@@ -153,65 +128,72 @@ class ReaderFera2017():
 
             dt = {'ims': [],'geoms': [], 'occ':[], 'int':[], 'subjects':[], 'tasks':[], 'poses':[]}
             for f in bat_fnames:
-                print 'Load sequence {}'.format(f)
+                print '     Load sequence {}'.format(f)
                 seq = cPickle.load(open(self.path + '/aligned/' + f, 'rb'))
 
-                #Filter junk
-                slices = partitioner.slice(seq['geoms'][0])
-                slices, geom, occ, int = self.filter_junk(slices, seq['geoms'][0], seq['occ'][0], seq['int'][0])
+                # Filter junk
+                ims, geoms, occ, int = self._filter_junk(np.asarray(seq['ims'][0], dtype=np.uint8),
+                                                               np.asarray(seq['geoms'][0], dtype=np.float16),
+                                                               np.asarray(seq['occ'][0], dtype=np.uint8),
+                                                               np.transpose(np.asarray(seq['int'][0], dtype=np.uint8)))
 
-                dt['ims'].append(seq['ims'][0])
-                dt['geoms'].append(seq['geoms'][0])
-                dt['occ'].append(seq['occ'][0])
-                dt['int'].append(seq['int'][0])
+                # Accumulate data
+                dt = self._accumulate_data(dt, ims, geoms, occ, int,
+                                        subjects = [seq['subjects'][0] for i in range(0, len(seq['occ'][0]))],
+                                        tasks = [seq['tasks'][0] for i in range(0, len(seq['occ'][0]))],
+                                        poses = [seq['poses'][0] for i in range(0, len(seq['occ'][0]))])
 
-                dt['subjects'].append([seq['subjects'][0] for i in range(0, len(seq['occ'][0]))])
-                dt['tasks'].append([seq['tasks'][0] for i in range(0, len(seq['occ'][0]))])
-                dt['poses'].append([seq['poses'][0] for i in range(0, len(seq['occ'][0]))])
+            if len(dt['occ'])>0:
+                # Vectorize and shuffle
+                dt = self._shuffle_data(dt)
 
-            # Shuffle
-            L = len(np.concatenate(dt['occ']))
-            print 'There are {} samples in this batch'.format(L)
-            shuffle = range(0,L)
-            np.random.shuffle(shuffle)
-
-            dt['ims'] = np.concatenate(dt['ims'])[shuffle]
-            dt['geoms'] = np.concatenate(dt['geoms'])[shuffle]
-            dt['occ'] = np.concatenate(dt['occ'])[shuffle]
-            dt['int'] = np.transpose(np.concatenate(dt['int'], axis=1))[shuffle]
-            dt['subjects'] = np.concatenate(dt['subjects'])[shuffle]
-            dt['tasks'] = np.concatenate(dt['tasks'])[shuffle]
-            dt['poses'] = np.concatenate(dt['poses'])[shuffle]
-
-            # Dump batches
-            print 'Dumping batch {}'.format(bat)
-            cPickle.dump(dt, open(self.path+'/fera17_train_' + str(bat), 'wb'), cPickle.HIGHEST_PROTOCOL)
+                # Dump
+                print 'Dumping batch {}'.format(bat)
+                cPickle.dump(dt, open(self.path+'/fera17_train_' + str(bat), 'wb'), cPickle.HIGHEST_PROTOCOL)
+            else:
+                print 'This batch is empty'
 
         return dt
 
-    def filter_junk(self, slices, geom, occ, int):
+    def _accumulate_data(self, dt, ims, geoms, occ, int, subjects, tasks, poses):
+        dt['ims'].append(ims)
+        dt['geoms'].append(geoms)
+        dt['occ'].append(occ)
+        dt['int'].append(int)
+        dt['subjects'].append(subjects)
+        dt['tasks'].append(tasks)
+        dt['poses'].append(poses)
 
+        return dt
+
+    def _shuffle_data(self, dt):
+        L = len(np.concatenate(dt['occ']))
+        print '     There are {} samples in this batch'.format(L)
+        shuffle = range(0,L)
+        np.random.shuffle(shuffle)
+
+        dt['ims'] = np.concatenate(dt['ims'])[shuffle]
+        dt['geoms'] = np.concatenate(dt['geoms'])[shuffle]
+        dt['occ'] = np.concatenate(dt['occ'])[shuffle]
+        dt['int'] = np.concatenate(dt['int'])[shuffle]
+        dt['subjects'] = np.concatenate(dt['subjects'])[shuffle]
+        dt['tasks'] = np.concatenate(dt['tasks'])[shuffle]
+        dt['poses'] = np.concatenate(dt['poses'])[shuffle]
+
+        return dt
+
+    def _filter_junk(self, ims, geoms, occ, int):
         # Check failed frontalization
-        failed = np.asarray([i for i,x in enumerate(geom) if np.sum(x)==0])
+        failed = np.asarray([i for i,x in enumerate(geoms) if np.sum(x)==0])
 
-        print 'Filering {} junk samples'.format(len(failed))
-        # Filter failed frontalization
-        if failed:
-            mask = np.ones(len(geom), dtype=bool)
+        # Filter out failed frontalization
+        if len(failed)>0:
+            print '     Filering {} junk samples'.format(len(failed))
+            mask = np.ones(len(geoms), dtype=bool)
             mask[failed] = False
-            geom, occ, int = (geom[mask,...], occ[mask,...], int[mask,...])
+            ims, geom, occ, int = (ims[mask,...], geoms[mask,...], occ[mask,...], int[mask,...])
 
-            #Filter slices
-            d = [[(i,np.where(slice==x)[0][0]) for i, slice in enumerate(slices) if x in slice] for x in failed]
-            for x in d: slices = update_slices(slices, x[0][0], x[0][1])
-
-        return slices, geom, occ, int
-
-    def sequences2batches(self, slices, n_batches=10):
-        return partitioner.deconcat(np.random.randint(0, n_batches, len(np.concateante(slices))), slices)
-
-    def read_sift(self):
-        pass
+        return ims, geoms, occ, int
 
     def _read_au_intensities(self, root, subject, task):
         dt = [None] * len(self.aus_int)
@@ -230,7 +212,6 @@ class ReaderFera2017():
         fnames = [f for f in os.listdir(self.path_ims) if subject in f and f.endswith('.mp4')]
         return sorted(list(set([re.split('_', f)[3] for f in fnames])))
 
-
 def update_slices(slices, slice, idx):
     prefix  = list(slices[:slice])
     core = slices[slice]
@@ -240,36 +221,6 @@ def update_slices(slices, slice, idx):
     sufix = [x-1 for x in sufix]
 
     return prefix + core + sufix
-
-# TODO: include in here
-def normalize_fera_geom(path):
-    path = '/Users/cipriancorneanu/Research/data/fera2017/aligned/'
-    dt = cPickle.load(open(path+'fera2017_geom.pkl', 'rb'))
-
-    # Encode geometry
-    slices = partitioner.slice(dt['geoms'])
-    geom = np.squeeze(np.concatenate([[x for x in item] for item in  dt['geoms']]))
-    occ = np.squeeze(np.concatenate([[x for x in item] for item in  dt['occ']]))
-    int = np.squeeze(np.concatenate([[x for x in item] for item in [np.transpose(x) for x in dt['int']]]))
-
-    # Check failed frontalization
-    failed = np.asarray([i for i,x in enumerate(geom) if np.sum(x)==0])
-
-    # Filter failed frontalization
-    mask = np.ones(len(geom), dtype=bool)
-    mask[failed] = False
-    geom, occ, int = (geom[mask,...], occ[mask,...], int[mask,...])
-
-    # Filter slices
-    d = [[(i,np.where(slice==x)[0][0]) for i, slice in enumerate(slices) if x in slice] for x in failed]
-    for x in d: slices = update_slices(slices, x[0][0], x[0][1])
-
-    # Procrustes
-    _, tfms = procrustes.procrustes_generalized(geom, num_iter=1)
-
-    # Transform
-    aligned_uncoded = np.reshape(linalg.transform_shapes(geom, tfms, inverse=True),
-                                (geom.shape[0], -1))
 
 class ReaderCKplus():
     def __init__(self, path):
@@ -466,4 +417,4 @@ if __name__ == '__main__':
     path = '/Users/cipriancorneanu/Research/data/fera2017'
     reader = ReaderFera2017(path)
 
-    reader.read_batches(2)
+    reader.read_geom(path, 'geom.pkl' )

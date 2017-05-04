@@ -17,8 +17,8 @@ def slice(list):
 
 def concat(dt):
     return(
-        tuple([np.concatenate(x) for x in dt]),
-        slice(dt[0])
+        np.concatenate(dt),
+        slice(dt)
     )
 
 def deconcat(array, slices):
