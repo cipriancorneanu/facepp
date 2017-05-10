@@ -4,6 +4,7 @@ import re
 from facepp.processor.aligner import align
 import cPickle
 import scipy.io as io
+from scipy.misc import imresize
 from facepp.frontalizer.check_resources import check_dlib_landmark_weights
 import dlib
 from facepp.frontalizer.frontalize import ThreeD_Model
@@ -13,6 +14,7 @@ from extractor import extract, extract_face
 from reader import *
 import time
 from joblib import Parallel, delayed
+import random
 
 class ReaderFera2017():
     def __init__(self, path):
@@ -413,8 +415,128 @@ class ReaderDisfa():
     def _lm_file_sorter(self, files):
         return sorted(files)
 
-if __name__ == '__main__':
-    path = '/Users/cipriancorneanu/Research/data/fera2017'
-    reader = ReaderFera2017(path)
+#TODO: refactor this code. Make nice
+def generate_ml_mnist():
+    # Random Shifts
+    from keras.datasets import mnist
+    from keras.preprocessing.image import ImageDataGenerator
+    from matplotlib import pyplot
+    from keras import backend as K
+    K.set_image_dim_ordering('th')
+    # load data
+    (X_train, y_train), (X_test, y_test) = mnist.load_data()
+    # reshape to be [samples][pixels][width][height]
+    X_train = X_train.reshape(X_train.shape[0], 1, 28, 28)
+    X_test = X_test.reshape(X_test.shape[0], 1, 28, 28)
+    # convert from int to float
+    X_train = X_train.astype('float32')
+    X_test = X_test.astype('float32')
+    # define data preparation
+    bs = 10
+    datagen = ImageDataGenerator(rotation_range=30)
+    # fit parameters from data
+    datagen.fit(X_train)
+    # configure batch size and retrieve one batch of images
+    for i, (X_batch, y_batch) in enumerate(datagen.flow(X_test, y_test, batch_size=bs)):
 
-    reader.read_geom(path, 'geom.pkl' )
+        y, idxs = np.unique(y_batch, return_index=True)
+        x, y = function2name(np.squeeze(X_batch[idxs]), y)
+
+        print 'Targets: {}'.format(y)
+        pyplot.imshow(x, cmap=pyplot.get_cmap('gray'))
+
+        '''
+        # create a grid of 3x3 images
+        for j in range(0, bs):
+            pyplot.subplot(1, bs, j+1)
+            pyplot.imshow(X_batch[j].reshape(28, 28), cmap=pyplot.get_cmap('gray'))
+        '''
+
+        # show the plot
+        pyplot.savefig('/Users/cipriancorneanu/Research/code/afea/results/ml_mnist' + str(i) +'.png')
+
+        if i == 100: break
+        pass
+
+def function2name(batch_x, batch_y, shape=(64,64), mean=.75, variance=1):
+
+    # Generate positions
+    positions = generate_grid_positions(batch_y, shape)
+
+    # Pick n samples out of batch
+    batch_x, batch_y, positions = pick(batch_x, batch_y, positions[batch_y])
+
+    # Rescale
+    patches = [imresize(x, mean-variance*(.5-np.random.random())) for x in batch_x]
+
+    print [x.shape for x in patches]
+
+    # Generate patches
+    out = place_patches(patches, positions, shape)
+
+    return out, batch_y
+
+def pick(batch_x, batch_y, pos):
+    # Pick random n random positions
+    idxs = random.sample(xrange(0,len(batch_y)), np.random.randint(len(batch_x)))
+
+    return batch_x[idxs,...], batch_y[idxs], pos[idxs]
+
+def generate_grid_positions(batch_y, roi):
+    step_x, step_y = (roi[0]/3, roi[1]/3)
+    offset_x, offset_y = (roi[1]/6, roi[0]/6)
+
+    grid = [ (offset_y + step_y*(i//3), offset_x + step_x*(i%3)) for i in range(0,6)]
+
+    # Recompute for last row. It will contain 4 positions
+    step_x, step_y = (roi[0]/4, roi[1]/3)
+    offset_x, offset_y = (roi[1]/8, roi[0]/6)
+
+    grid =  grid + [ (offset_y + step_y*i, offset_x + step_x*j) for i,j in [(2,0), (2,1), (2,2), (2,3)]]
+
+    # Add random translations to grid
+    translations = np.zeros_like(grid)
+
+    return grid + translations
+
+def generate_random_positions(batch_y, roi):
+    pass
+
+def place_patches(patches, positions, shape=(64,64)):
+    output = np.zeros((len(patches), shape[0], shape[1]))
+    center = np.divide(shape,2)
+
+    for i, (out, patch, pos) in enumerate(zip(output, patches, positions)):
+        print 'Position: {}'.format(pos)
+
+        # Compute ROI
+        roi = np.concatenate([pos - [x//2 for x in patch.shape], pos - [x//2 for x in patch.shape] + patch.shape])
+
+        corners = [p for p in [[roi[0], roi[1]], [roi[0], roi[2]], [roi[2], roi[1]], [roi[2], roi[3]]]]
+
+        extreme = np.argmax([np.sqrt(np.sum((c-center)**2)) for c in corners])
+
+        sz = np.max(np.abs(corners[extreme]-center))*2
+
+        if sz > shape[0]:
+            out_ext = np.zeros((sz, sz))
+        else:
+            out_ext = out
+
+        # If on the negative side translate
+        if len(np.where(roi<0)[0])>0:
+            roi = roi - [np.min([np.min(np.take(roi, [0,2])), 0]), np.min([np.min(np.take(roi, [1,3])), 0]),
+                         np.min([np.min(np.take(roi, [0,2])), 0]), np.min([np.min(np.take(roi, [1,3])), 0])]
+
+        # Patch in image
+        out_ext[roi[0]:roi[2],roi[1]:roi[3]] = patch
+
+        if sz > shape[0]:
+            output[i,...] = out_ext[sz/2-center[0]:sz/2+center[0], sz/2-center[1]:sz/2+center[1]]
+        else:
+            output[i,...] = out_ext
+
+    return np.asarray(np.sum(output, axis=0), dtype=np.uint8)
+
+if __name__ == '__main__':
+    generate_ml_mnist()

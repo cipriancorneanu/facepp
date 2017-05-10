@@ -30,11 +30,20 @@ def plot_stacked_bar(axis, dt, labels):
 
     return axis
 
-def plot_qualitative(axis, pts, ims, txts=None):
-    for i, (ax, pt, im) in enumerate(zip(axis, pts, ims)):
-        axis.scatter(pt[:,1], pt[:,0])
-        axis.imshow(im, cmap='Greys',  interpolation='nearest')
-        if txts: plt.text(10,10,str(txts[i]), color='w')
+def plot_qualitative(axis, pts=None, ims=None, txts=None):
+    # Plot images, scatter of 2D points and text in one axis
+    if ims is not None:
+        for i, (ax, im) in enumerate(zip(axis, ims)):
+            ax.axis('off')
+            ax.imshow(im, cmap='Greys', interpolation='nearest')
+
+    if pts is not None:
+        for i, (ax, pt) in enumerate(zip(axis, pts)):
+            ax.scatter(pt[:,0], pt[:,1])
+
+    if txts is not None:
+        for i, (ax, txt) in enumerate(zip(axis, txts)):
+            ax.text(10, 10, str(txt), color='r')
 
     return axis
 
