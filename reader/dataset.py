@@ -415,100 +415,127 @@ class ReaderDisfa():
     def _lm_file_sorter(self, files):
         return sorted(files)
 
-#TODO: refactor this code. Make nice
-def generate_ml_mnist():
-    # Random Shifts
+def generate_ml_mnist(visualize=False):
+    # Random shifts
     from keras.datasets import mnist
     from keras.preprocessing.image import ImageDataGenerator
     from matplotlib import pyplot
     from keras import backend as K
+
     K.set_image_dim_ordering('th')
+
     # load data
-    (X_train, y_train), (X_test, y_test) = mnist.load_data()
+    (x_train, y_train), (x_test, y_test) = mnist.load_data()
+
     # reshape to be [samples][pixels][width][height]
-    X_train = X_train.reshape(X_train.shape[0], 1, 28, 28)
-    X_test = X_test.reshape(X_test.shape[0], 1, 28, 28)
+    x_train = x_train.reshape(x_train.shape[0], 1, 28, 28)
+    x_test = x_test.reshape(x_test.shape[0], 1, 28, 28)
+
     # convert from int to float
-    X_train = X_train.astype('float32')
-    X_test = X_test.astype('float32')
+    x_train = x_train.astype('float32')
+    x_test = x_test.astype('float32')
+
     # define data preparation
-    bs = 10
     datagen = ImageDataGenerator(rotation_range=30)
+
     # fit parameters from data
-    datagen.fit(X_train)
+    datagen.fit(x_train)
+
+    x_train_ml = np.zeros((len(x_train), 64, 64), dtype = np.uint8)
+    x_test_ml = np.zeros((len(x_test), 64, 64), dtype = np.uint8)
+    y_train_ml, y_test_ml = ([], [])
+
     # configure batch size and retrieve one batch of images
-    for i, (X_batch, y_batch) in enumerate(datagen.flow(X_test, y_test, batch_size=bs)):
+    visualize = False
+    for x,y,x_ml,y_ml in [(x_train, y_train, x_train_ml, y_train_ml),
+                          (x_test, y_test, x_test_ml, y_test_ml)]:
+        # number of samples to generate
+        for i, (x_batch, y_batch) in enumerate(datagen.flow(x, y, batch_size=30)):
+            if i % 1000 == 0: print 'Generate sample {}'.format(i)
 
-        y, idxs = np.unique(y_batch, return_index=True)
-        x, y = function2name(np.squeeze(X_batch[idxs]), y)
+            y_batch, idxs = np.unique(y_batch, return_index=True)
 
-        print 'Targets: {}'.format(y)
-        pyplot.imshow(x, cmap=pyplot.get_cmap('gray'))
+            im, targets = batch_patcher(np.squeeze(x_batch[idxs]), y_batch)
 
-        '''
-        # create a grid of 3x3 images
-        for j in range(0, bs):
-            pyplot.subplot(1, bs, j+1)
-            pyplot.imshow(X_batch[j].reshape(28, 28), cmap=pyplot.get_cmap('gray'))
-        '''
+            x_ml[i,...] = im
+            y_ml.append(targets)
 
-        # show the plot
-        pyplot.savefig('/Users/cipriancorneanu/Research/code/afea/results/ml_mnist' + str(i) +'.png')
+            # show the plot
+            if visualize:
+                print 'Targets: {}'.format(targets)
+                pyplot.imshow(im, cmap=pyplot.get_cmap('gray'))
+                pyplot.savefig('/Users/cipriancorneanu/Research/code/afea/results/ml_mnist' + str(i) +'.png')
 
-        if i == 100: break
-        pass
+            if i == len(y)-1: break
+            pass
 
-def function2name(batch_x, batch_y, shape=(64,64), mean=.75, variance=1):
+    data = [(x_train_ml, y_train_ml), (x_test_ml, y_test_ml)]
 
+    path = '/Users/cipriancorneanu/Research/code/afea/results/'
+    cPickle.dump(data, open(path + 'ml_mnist.pkl', 'wb'), cPickle.HIGHEST_PROTOCOL)
+
+def batch_patcher(x, y, shape=(64,64)):
+    '''
+    Patch batch of images inside shape with variations (random pooling, scaling, positions)
+    '''
     # Generate positions
-    positions = generate_grid_positions(batch_y, shape)
+    positions = generate_grid_positions(shape)
 
     # Pick n samples out of batch
-    batch_x, batch_y, positions = pick(batch_x, batch_y, positions[batch_y])
+    idxs = sample(low=0, high=len(x))
+    x, y, positions = x[idxs], y[idxs], positions[y][idxs]
 
-    # Rescale
-    patches = [imresize(x, mean-variance*(.5-np.random.random())) for x in batch_x]
+    # Randomly rescale between high and low
+    low, high= (0.5, 1.2)
+    patches = [imresize(x, (high-low)*np.random.random()+low) for x in x]
 
-    print [x.shape for x in patches]
+    # Patch
+    return patch(patches, positions, shape), y
 
-    # Generate patches
-    out = place_patches(patches, positions, shape)
+def sample(low=0, high=10):
+    '''
+    Generate random number of random integers from the normal distribution in the interval [low, high]
+    '''
+    miu, sigma = (high-low)/2, 0.1*(high-low)
+    n = max(low, min(int(sigma * np.random.randn() + miu), high))
 
-    return out, batch_y
+    return random.sample(xrange(low,high), n)
 
-def pick(batch_x, batch_y, pos):
-    # Pick random n random positions
-    idxs = random.sample(xrange(0,len(batch_y)), np.random.randint(len(batch_x)))
+def generate_grid_positions(region):
+    '''
+    Generate set of 10 positions in predefined rectangular region
+    '''
 
-    return batch_x[idxs,...], batch_y[idxs], pos[idxs]
-
-def generate_grid_positions(batch_y, roi):
-    step_x, step_y = (roi[0]/3, roi[1]/3)
-    offset_x, offset_y = (roi[1]/6, roi[0]/6)
-
+    # First two rows will contain 3 equally spaces positions each
+    step_x, step_y = (region[0]/3, region[1]/3)
+    offset_x, offset_y = (region[1]/6, region[0]/6)
     grid = [ (offset_y + step_y*(i//3), offset_x + step_x*(i%3)) for i in range(0,6)]
 
-    # Recompute for last row. It will contain 4 positions
-    step_x, step_y = (roi[0]/4, roi[1]/3)
-    offset_x, offset_y = (roi[1]/8, roi[0]/6)
-
+    # Recompute for last row. It will contain remaining 4 positions
+    step_x, step_y = (region[0]/4, region[1]/3)
+    offset_x, offset_y = (region[1]/8, region[0]/6)
     grid =  grid + [ (offset_y + step_y*i, offset_x + step_x*j) for i,j in [(2,0), (2,1), (2,2), (2,3)]]
 
-    # Add random translations to grid
-    translations = np.zeros_like(grid)
+    # Add noise to grid
+    noise = np.zeros_like(grid)
 
-    return grid + translations
+    return grid + noise
 
-def generate_random_positions(batch_y, roi):
+def generate_random_positions(roi):
     pass
 
-def place_patches(patches, positions, shape=(64,64)):
+def patch(patches, positions, shape=(64,64)):
+    '''
+    Patch patches at positions inside shape
+    :param patches: Set of image patches
+    :param positions: Positions to patch
+    :param shape: Shape of the output
+    :return:
+    '''
     output = np.zeros((len(patches), shape[0], shape[1]))
     center = np.divide(shape,2)
 
     for i, (out, patch, pos) in enumerate(zip(output, patches, positions)):
-        print 'Position: {}'.format(pos)
-
         # Compute ROI
         roi = np.concatenate([pos - [x//2 for x in patch.shape], pos - [x//2 for x in patch.shape] + patch.shape])
 
@@ -536,7 +563,7 @@ def place_patches(patches, positions, shape=(64,64)):
         else:
             output[i,...] = out_ext
 
-    return np.asarray(np.sum(output, axis=0), dtype=np.uint8)
+    return np.asarray(np.clip(np.sum(output, axis=0), 0, 255), dtype=np.uint8)
 
 if __name__ == '__main__':
     generate_ml_mnist()
