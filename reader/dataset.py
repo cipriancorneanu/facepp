@@ -106,7 +106,6 @@ class ReaderFera2017():
                                         int = int, subjects = seq['subjects'],
                                         tasks = seq['tasks'], poses = seq['poses'])
 
-
         # Encode geometry
         geoms, slices = partitioner.concat(dt['geoms'])
         enc_geom, _, _ = encode_parametric(np.asarray(geoms, dtype=np.float32))
@@ -151,7 +150,7 @@ class ReaderFera2017():
 
                 # Dump
                 print 'Dumping batch {}'.format(bat)
-                cPickle.dump(dt, open(self.path+'/fera17_train_' + str(bat), 'wb'), cPickle.HIGHEST_PROTOCOL)
+                cPickle.dump(dt, open(self.path+'/fera17_' + str(bat), 'wb'), cPickle.HIGHEST_PROTOCOL)
             else:
                 print 'This batch is empty'
 
@@ -566,4 +565,5 @@ def patch(patches, positions, shape=(64,64)):
     return np.asarray(np.clip(np.sum(output, axis=0), 0, 255), dtype=np.uint8)
 
 if __name__ == '__main__':
-    generate_ml_mnist()
+    reader = ReaderFera2017('home/corneanu/data/fera2017/validation/')
+    reader.read_batches(10)
