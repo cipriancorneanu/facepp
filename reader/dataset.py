@@ -16,13 +16,33 @@ import time
 from joblib import Parallel, delayed
 import random
 
-def Fera2017(path, n):
-    bat = 0
-    while bat < n:
-        fera = cPickle.load(open(path+'fera17_train_' + str(bat), 'rb'))
-        x, y = (fera['ims'], fera['occ'])
-        yield (x, y)
-        bat += 1
+class GeneratorFera2017():
+    def __init__(self, path, N):
+        self.path = path
+        self.N = N
+
+    def generate(self, datagen, mini_batch_size=32):
+        mega_batch = 0
+        while mega_batch < self.N:
+            # Load mega batch from file
+            fera = cPickle.load(open(self.path+'fera17_train_' + str(mega_batch), 'rb'))
+            x, y = (fera['ims'], fera['occ'])
+
+            # Yield as many mini_batches as it fits the mega_batch
+            for i, (x_batch, y_batch) in enumerate(datagen.flow(x, y, batch_size=mini_batch_size)):
+                if i>x.shape[0]//mini_batch_size: break
+                yield (x, y)
+
+            mega_batch += 1
+
+    def n_samples(self):
+        mega_batch, n = (0, 0)
+        while mega_batch < self.N:
+            # Load mega batch from file
+            y = cPickle.load(open(self.path+'fera17_train_' + str(mega_batch), 'rb'))['occ']
+            n += len(y)
+
+        return n
 
 class ReaderFera2017():
     def __init__(self, path):
