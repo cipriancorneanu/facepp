@@ -16,6 +16,14 @@ import time
 from joblib import Parallel, delayed
 import random
 
+def Fera2017(path, n):
+    bat = 0
+    while bat < n:
+        fera = cPickle.load(open(path+'fera17_train_' + str(bat), 'rb'))
+        x, y = (fera['ims'], fera['occ'])
+        yield (x, y)
+        bat += 1
+
 class ReaderFera2017():
     def __init__(self, path):
         self.path = path
@@ -131,6 +139,8 @@ class ReaderFera2017():
             for f in bat_fnames:
                 print '     Load sequence {}'.format(f)
                 seq = cPickle.load(open(self.path + '/aligned/' + f, 'rb'))
+
+                seq['int'][0] = [x for x in seq['int'][0][7:]]
 
                 # Filter junk
                 ims, geoms, occ, int = self._filter_junk(np.asarray(seq['ims'][0], dtype=np.uint8),
@@ -416,6 +426,7 @@ class ReaderDisfa():
 
 def generate_ml_mnist(visualize=False):
     # Random shifts
+    import keras
     from keras.datasets import mnist
     from keras.preprocessing.image import ImageDataGenerator
     from matplotlib import pyplot
@@ -463,15 +474,20 @@ def generate_ml_mnist(visualize=False):
             if visualize:
                 print 'Targets: {}'.format(targets)
                 pyplot.imshow(im, cmap=pyplot.get_cmap('gray'))
-                pyplot.savefig('/Users/cipriancorneanu/Research/code/afea/results/ml_mnist' + str(i) +'.png')
+                pyplot.savefig('/Users/cipriancorneanu/Research/code/afea/results/ml_mnist_test' + str(i) +'.png')
 
-            if i == len(y)-1: break
+            if i == 10000-1: break
             pass
 
-    data = [(x_train_ml, y_train_ml), (x_test_ml, y_test_ml)]
+    # Pass targets to categorical
+    y_train_ml = np.asarray([np.sum(keras.utils.to_categorical(x, 10), axis=0) for x in y_train_ml], dtype=np.uint8)
+    y_test_ml = np.asarray([np.sum(keras.utils.to_categorical(x, 10), axis=0) for x in y_test_ml], dtype=np.uint8)
 
-    path = '/Users/cipriancorneanu/Research/code/afea/results/'
-    cPickle.dump(data, open(path + 'ml_mnist.pkl', 'wb'), cPickle.HIGHEST_PROTOCOL)
+    data = [(np.expand_dims(x_train_ml, axis=3), y_train_ml),
+            (np.expand_dims(x_test_ml, axis=3), y_test_ml)]
+
+    path = '/Users/cipriancorneanu/Research/data/'
+    cPickle.dump(data, open(path + 'ml_mnist_test.pkl', 'wb'), cPickle.HIGHEST_PROTOCOL)
 
 def batch_patcher(x, y, shape=(64,64)):
     '''
@@ -565,5 +581,7 @@ def patch(patches, positions, shape=(64,64)):
     return np.asarray(np.clip(np.sum(output, axis=0), 0, 255), dtype=np.uint8)
 
 if __name__ == '__main__':
-    reader = ReaderFera2017('home/corneanu/data/fera2017/validation/')
+    '''
+    reader = ReaderFera2017('/Users/cipriancorneanu/Research/data/fera2017/validation/')
     reader.read_batches(10)
+    '''

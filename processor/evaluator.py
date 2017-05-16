@@ -1,6 +1,13 @@
 __author__ = 'cipriancorneanu'
 
 import numpy as np
+from sklearn.metrics import f1_score, accuracy_score
+
+def f1(gt, est):
+    f1_score(gt, est, average='micro')
+
+def accuracy(gt, est):
+    accuracy_score(gt, est)
 
 def mse(gt, est):
     return np.mean((gt-est)**2, axis=0)
