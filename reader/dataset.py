@@ -21,29 +21,48 @@ class GeneratorFera2017():
         self.path = path
         self.N = N
 
-    def generate(self, datagen, mini_batch_size=32):
-        mega_batch = 0
-        while mega_batch < self.N:
+    def generate(self, datagen, mini_batch_size=32, n_iters=-1):
+        mega_batch, iter = (0,0)
+        '''Iterate through mega_batches infinitely until n_iters is reached'''
+        while True:
             # Load mega batch from file
-            fera = cPickle.load(open(self.path+'fera17_train_' + str(mega_batch), 'rb'))
+            fera = cPickle.load(open(self.path+'fera17_train_' + str(mega_batch%self.N), 'rb'))
             x, y = (fera['ims'], fera['occ'])
 
-            # Yield as many mini_batches as it fits the mega_batch
+            # Yield as many mini_batches as it fits the mega_batch_size
             for i, (x_batch, y_batch) in enumerate(datagen.flow(x, y, batch_size=mini_batch_size)):
-                if i>x.shape[0]//mini_batch_size: break
-                yield (x, y)
+                if i==x.shape[0]//mini_batch_size: break
+                    
+                yield (x_batch, y_batch)
+                iter += 1
+                    
+                ''' Exit if reached number of iterations n_iters'''
+                if iter == n_iters:
+                    return
 
             mega_batch += 1
-
+            
     def n_samples(self):
         mega_batch, n = (0, 0)
         while mega_batch < self.N:
             # Load mega batch from file
             y = cPickle.load(open(self.path+'fera17_train_' + str(mega_batch), 'rb'))['occ']
+            mega_batch += 1
             n += len(y)
-
         return n
 
+    def n_iterations(self, mini_batch_size):
+        mega_batch, n = (0, 0)
+        while mega_batch < self.N:
+        # Load mega batch from file
+            y = cPickle.load(open(self.path+'fera17_train_' + str(mega_batch), 'rb'))['occ']
+            mega_batch += 1
+            n += len(y)//mini_batch_size
+        return n
+    
+    def representative_sample(self):
+        return cPickle.load(open(self.path+'fera17_train_0' , 'rb'))['ims']
+    
 class ReaderFera2017():
     def __init__(self, path):
         self.path = path
