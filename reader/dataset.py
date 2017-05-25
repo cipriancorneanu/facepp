@@ -86,7 +86,7 @@ class ReaderOuluCasia():
             print '     Filering {} junk samples'.format(len(failed))
             mask = np.ones(len(geoms), dtype=bool)
             mask[failed] = False
-            ims, geom, emos = (faces[mask,...], geoms[mask,...], emos[mask,...])
+            faces, geoms, emos = (faces[mask,...], geoms[mask,...], emos[mask,...])
 
         return faces, geoms, emos
 
