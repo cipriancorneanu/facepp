@@ -1,2 +1,4 @@
 *.pyc
+processor/*.pyc
+reader/*.pyc
 face-frontalization
