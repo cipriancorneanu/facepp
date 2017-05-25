@@ -18,7 +18,7 @@ import random
 import gc
 
 class GeneratorFera2017():
-    def __init__(self, path, N):
+    def __init__(self, path, N=15):
         self.path = path
         self.N = N
 
