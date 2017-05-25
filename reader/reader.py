@@ -15,7 +15,8 @@ def read_folder(path, sorter=None):
     return [read_txt(path+file) if ext=='txt' else
             read_video(path+file) if ext=='avi' else
             read_mat(path+file) if ext=='mat' else
-            read_image(path+file, colorspace='RGB') for ext, file in zip(extensions, files)]
+            read_image(path+file, colorspace='RGB') for ext, file in zip(extensions, files)
+            if ext in ['jpg', 'jpeg', 'JPEG', 'png']]
 
 def get_files(path, sorter=None):
     # Get files from path by filtering hidden and directories
