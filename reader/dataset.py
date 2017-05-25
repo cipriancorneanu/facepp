@@ -20,7 +20,7 @@ import gc
 class ReaderOuluCasia():
     def __init__(self, path):
         self.path = path
-        self.illuminations = ['Dark', 'Strong', 'Weak']
+        self.illuminations = ['Strong', 'Weak', 'Dark']
         self.emotions = ['Anger', 'Disgust', 'Fear', 'Happiness', 'Sadness', 'Surprise']
 
     def read(self, opath, mpath, cores=2):
@@ -57,20 +57,38 @@ class ReaderOuluCasia():
                                    for i,(face_detected,face) in enumerate(faces)]
 
                         afaces, ageoms = (np.asarray([x[0] for x in aligned], dtype=np.uint8),
-                                          np.asarray([x[1] for x in aligned], dtype=np.float16))
+                                                np.asarray([x[1] for x in aligned], dtype=np.float16))
+                        emos = self._code_emo(emo)*np.ones(len(afaces),dtype=np.uint8)
+
+                        # Filter out failed frontalization
+                        afaces, ageoms, emos = self._filter_junk(afaces, ageoms, emos)
 
                         # Save
                         dt['faces'].append(afaces)
                         dt['geoms'].append(ageoms)
-                        dt['emos'].append(self._code_emo(emo)*np.ones(len(afaces),dtype=np.uint8))
+                        dt['emos'].append(emos)
 
                 dt['faces'], dt['geoms'], dt['emos'] = (np.concatenate(dt['faces']), np.concatenate(dt['geoms']),
                                                             np.concatenate(dt['emos']))
+
                 print '     Save data'
                 cPickle.dump(dt, open(opath + illumination + '/' +  subject + '.pkl', 'wb'),
                              cPickle.HIGHEST_PROTOCOL)
 
                 print '     Subject {} processsed in {:.2f} s'.format(subject, time.time() - start_time)
+
+    def _filter_junk(self, faces, geoms, emos):
+        # Check failed frontalization
+        failed = np.asarray([i for i,x in enumerate(geoms) if np.sum(x)==0])
+
+        # Filter out failed frontalization
+        if len(failed)>0:
+            print '     Filering {} junk samples'.format(len(failed))
+            mask = np.ones(len(geoms), dtype=bool)
+            mask[failed] = False
+            ims, geom, emos = (faces[mask,...], geoms[mask,...], emos[mask,...])
+
+        return faces, geoms, emos
 
     def _code_emo(self, emo):
         map = {'Anger':0, 'Disgust':1, 'Fear':2, 'Happiness':3, 'Sadness':4, 'Surprise':5}
