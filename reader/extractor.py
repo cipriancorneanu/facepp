@@ -20,8 +20,9 @@ def _crop(im, shape, extension=1.3):
              min(im.shape[0], bbox[2]), min(im.shape[1], bbox[3])]
 
     # If inside get image if out put to zero
-    imc = np.zeros((bbox[2]-bbox[0], bbox[3]-bbox[1]), dtype=np.uint8)
-    imc[0:ibbox[2]-ibbox[0], 0:ibbox[3]-ibbox[1]] = im[ibbox[0]:ibbox[2], ibbox[1]:ibbox[3]]
+    imc = np.zeros((bbox[2]-bbox[0], bbox[3]-bbox[1], im.shape[2]), dtype=np.uint8)
+
+    imc[0:ibbox[2]-ibbox[0], 0:ibbox[3]-ibbox[1], ...] = im[ibbox[0]:ibbox[2], ibbox[1]:ibbox[3], ...]
 
     return (
         imc,
@@ -39,9 +40,9 @@ def _resize(im, shape, size=200):
     shape = shape*r
 
     # Thumbnail on smaller dimension
-    margins = (np.array([size,size]) - np.array(im.shape) ) / 2
-    imt = np.zeros((size, size), dtype=np.uint8)
-    imt[margins[0]:margins[0]+im.shape[0],margins[1]:margins[1]+im.shape[1]] = im
+    margins = (np.array([size,size]) - np.array(im.shape[:2])) / 2
+    imt = np.zeros((size, size, im.shape[2]), dtype=np.uint8)
+    imt[margins[0]:margins[0]+im.shape[0],margins[1]:margins[1]+im.shape[1],...] = im
 
     return (
         imt,

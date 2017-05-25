@@ -15,7 +15,7 @@ def read_folder(path, sorter=None):
     return [read_txt(path+file) if ext=='txt' else
             read_video(path+file) if ext=='avi' else
             read_mat(path+file) if ext=='mat' else
-            read_image(path+file) for ext, file in zip(extensions, files)]
+            read_image(path+file, colorspace='RGB') for ext, file in zip(extensions, files)]
 
 def get_files(path, sorter=None):
     # Get files from path by filtering hidden and directories
@@ -31,21 +31,6 @@ def get_files(path, sorter=None):
 def read_mat(fname):
     return scipy.io.loadmat(fname)
 
-'''
-def read_video(fname, colorspace='L'):
-    # TODO: Consider passing video reading to opencv as PyAV depends on ffmpeg
-
-    container = av.open(fname)
-    video = next(s for s in container.streams if s.type == b'video')
-
-    seq = []
-    for packet in container.demux(video):
-        for frame in packet.decode():
-            im = np.asarray(frame.to_image().convert(colorspace), dtype=np.uint8)
-            seq.append(im)
-    return np.asarray(seq)
-'''
-
 def read_video(fname, colorspace='RGB'):
     vid = imageio.get_reader(fname, 'ffmpeg')
 
@@ -57,8 +42,8 @@ def read_video(fname, colorspace='RGB'):
     elif colorspace == 'RGB':
         return frames
 
-def read_image(fname, mode='L'):
-    return np.asarray(scipy.misc.imread(fname, mode), dtype=np.uint8)
+def read_image(fname, colorspace='L'):
+    return np.asarray(scipy.misc.imread(fname, mode=colorspace), dtype=np.uint8)
 
 def read_txt(fname, start=0, stop=None):
     # Read lines from text file from start to stop

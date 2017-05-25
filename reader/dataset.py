@@ -17,6 +17,65 @@ from joblib import Parallel, delayed
 import random
 import gc
 
+class ReaderOuluCasia():
+    def __init__(self, path):
+        self.path = path
+        self.illuminations = ['Dark', 'Strong', 'Weak']
+        self.emotions = ['Anger', 'Disgust', 'Fear', 'Happiness', 'Sadness', 'Surprise']
+
+    def read(self, opath, mpath, cores=2):
+        # Load models
+        check_dlib_landmark_weights(mpath + 'shape_predictor_models')
+        predictor = dlib.shape_predictor(mpath + 'shape_predictor_models/shape_predictor_68_face_landmarks.dat')
+        model3D = ThreeD_Model(mpath + 'frontalization_models/model3Ddlib.mat', 'model_dlib')
+        eyemask = np.asarray(io.loadmat(mpath + 'frontalization_models/eyemask.mat')['eyemask'])
+
+        # Get list of subjects
+        for illumination in self.illuminations:
+            print 'Illumination: {}'.format(illumination)
+            subjects = os.listdir(self.path + illumination)
+            print 'List of selected subjects: {}'.format(subjects)
+            for subject in subjects:
+                start_time = time.time()
+                print 'Processing subject {}'.format(subject)
+
+                dt = {'faces': [], 'geoms': [], 'emos': []}
+                for emo in self.emotions:
+                    target_path = self.path + illumination + '/' + subject + '/' + emo + '/'
+
+                    # Read ims from path
+                    if os.path.exists(target_path):
+
+                        ims = read_folder(target_path)
+
+                        print '     Extract faces and resize '
+                        faces = Parallel(n_jobs=cores)(delayed(extract_face)(i,im) for i,im in enumerate(ims))
+
+                        print '     Align faces'
+                        aligned = [align(i, face, model3D, eyemask, predictor) if face_detected
+                                   else (np.zeros((face.shape[0], face.shape[1], 3)), np.zeros((68,2)))
+                                   for i,(face_detected,face) in enumerate(faces)]
+
+                        afaces, ageoms = (np.asarray([x[0] for x in aligned], dtype=np.uint8),
+                                          np.asarray([x[1] for x in aligned], dtype=np.float16))
+
+                        # Save
+                        dt['faces'].append(afaces)
+                        dt['geoms'].append(ageoms)
+                        dt['emos'].append(self._code_emo(emo)*np.ones(len(afaces),dtype=np.uint8))
+
+                dt['faces'], dt['geoms'], dt['emos'] = (np.concatenate(dt['faces']), np.concatenate(dt['geoms']),
+                                                            np.concatenate(dt['emos']))
+                print '     Save data'
+                cPickle.dump(dt, open(opath + illumination + '/' +  subject + '.pkl', 'wb'),
+                             cPickle.HIGHEST_PROTOCOL)
+
+                print '     Subject {} processsed in {:.2f} s'.format(subject, time.time() - start_time)
+
+    def _code_emo(self, emo):
+        map = {'Anger':0, 'Disgust':1, 'Fear':2, 'Happiness':3, 'Sadness':4, 'Surprise':5}
+        return int(map[emo])
+
 class GeneratorFera2017():
     def __init__(self, path, N=15):
         self.path = path
@@ -616,7 +675,7 @@ def patch(patches, positions, shape=(64,64)):
     return np.asarray(np.clip(np.sum(output, axis=0), 0, 255), dtype=np.uint8)
 
 if __name__ == '__main__':
-    '''
-    reader = ReaderFera2017('/Users/cipriancorneanu/Research/data/fera2017/validation/')
-    reader.read_batches(10)
-    '''
+    path = '/Users/cipriancorneanu/Research/data/OuluCasia/VL/'
+    reader = ReaderOuluCasia(path)
+
+    reader.read(path+'aligned/', '/Users/cipriancorneanu/Research/code/facepp/models/' )
