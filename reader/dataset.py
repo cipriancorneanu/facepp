@@ -16,6 +16,8 @@ import time
 from joblib import Parallel, delayed
 import random
 import gc
+import keras
+from sklearn.model_selection import train_test_split
 
 class ReaderOuluCasia():
     def __init__(self, path):
@@ -101,7 +103,7 @@ class GeneratorFera2017():
 
     def generate(self, datagen, mini_batch_size=32):
         mega_batch = 0
-        '''Iterate through mega_batches infinitely'''
+        #Iterate through mega_batches infinitely
         while True:
             # Load mega batch from file
             fera = cPickle.load(open(self.path+'fera17_train_' + str(mega_batch%self.N), 'rb'))
@@ -109,12 +111,12 @@ class GeneratorFera2017():
 
             # Yield as many mini_batches as it fits the mega_batch_size
             for i, (x_batch, y_batch) in enumerate(datagen.flow(x, y, batch_size=mini_batch_size)):
-                if i==x.shape[0]//mini_batch_size: break    
+                if i==x.shape[0]//mini_batch_size: break
                 yield (x_batch, y_batch)
-                
+
             mega_batch += 1
             gc.collect()
-            
+
     def n_samples(self):
         mega_batch, n = (0, 0)
         while mega_batch < self.N:
@@ -132,10 +134,10 @@ class GeneratorFera2017():
             mega_batch += 1
             n += len(y)//mini_batch_size
         return n
-    
+
     def representative_sample(self):
         return cPickle.load(open(self.path+'fera17_train_0' , 'rb'))['ims']
-    
+
 class ReaderFera2017():
     def __init__(self, path):
         self.path = path
@@ -345,6 +347,31 @@ def update_slices(slices, slice, idx):
 
     return prefix + core + sufix
 
+class GeneratorCKPlus():
+    def __init__(self, path):
+        self.path = path
+
+    def generate(self, datagen, mini_batch_size=32):
+        x, y = cPickle.load(open(self.path+'ckp_train.pkl', 'rb'))
+        x = np.repeat(np.expand_dims(x, axis=3), 3, axis=3)
+
+        while True:
+            # Yield batches infinitely
+            for i, (x_batch, y_batch) in enumerate(datagen.flow(x, y, batch_size=mini_batch_size)):
+                yield (x_batch, y_batch)
+
+class GeneratorMLMNIST():
+    def __init__(self, path):
+        self.path = path
+
+    def generate(self, datagen, mini_batch_size=32):
+        (x, y),  (_, _) = cPickle.load(open(self.path+'ml_mnist.pkl', 'rb'))
+
+        while True:
+            # Yield batches infinitely
+            for i, (x_batch, y_batch) in enumerate(datagen.flow(x, y, batch_size=mini_batch_size)):
+                yield (x_batch, y_batch)
+
 class ReaderCKplus():
     def __init__(self, path):
         self.path = path
@@ -470,7 +497,7 @@ class ReaderPain():
         return dt
 
     def _vectorize_au(self, au):
-        ''' Pass sample from text format to vectorial format'''
+        #Pass sample from text format to vectorial format
         au_vector = np.zeros(len(self.au_list), dtype=np.uint8)
 
         # Get info
@@ -588,7 +615,7 @@ def generate_ml_mnist(visualize=False):
                 pyplot.imshow(im, cmap=pyplot.get_cmap('gray'))
                 pyplot.savefig('/Users/cipriancorneanu/Research/code/afea/results/ml_mnist_test' + str(i) +'.png')
 
-            if i == 10000-1: break
+            if i == len(x)-1: break
             pass
 
     # Pass targets to categorical
@@ -599,7 +626,7 @@ def generate_ml_mnist(visualize=False):
             (np.expand_dims(x_test_ml, axis=3), y_test_ml)]
 
     path = '/Users/cipriancorneanu/Research/data/'
-    cPickle.dump(data, open(path + 'ml_mnist_test.pkl', 'wb'), cPickle.HIGHEST_PROTOCOL)
+    cPickle.dump(data, open(path + 'ml_mnist.pkl', 'wb'), cPickle.HIGHEST_PROTOCOL)
 
 def batch_patcher(x, y, shape=(64,64)):
     '''
@@ -693,7 +720,4 @@ def patch(patches, positions, shape=(64,64)):
     return np.asarray(np.clip(np.sum(output, axis=0), 0, 255), dtype=np.uint8)
 
 if __name__ == '__main__':
-    path = '/Users/cipriancorneanu/Research/data/OuluCasia/VL/'
-    reader = ReaderOuluCasia(path)
-
-    reader.read(path+'aligned/', '/Users/cipriancorneanu/Research/code/facepp/models/' )
+    generate_ml_mnist()
