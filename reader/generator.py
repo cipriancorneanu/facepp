@@ -103,6 +103,9 @@ class GeneratorCKPlus():
         elif self.data_format == 'channels_first':
             return np.rollaxis(self.x_train, 3, 1).shape[1:]
 
+    def representative_sample(self):
+        return self.x_train
+
 class GeneratorMLMNIST():
     def __init__(self, path, data_format='channels_last'):
         self.path = path
@@ -132,3 +135,6 @@ class GeneratorMLMNIST():
             return self.x_train.shape[1:]
         elif self.data_format == 'channels_first':
             return np.rollaxis(self.x_train, 3, 1).shape[1:]
+
+    def representative_sample(self):
+        return self.x_train
