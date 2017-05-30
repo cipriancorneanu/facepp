@@ -64,7 +64,7 @@ class GeneratorFera2017():
         if self.data_format == 'channels_last':
             return self.representative_sample().shape[1:]
         elif self.data_format == 'channels_first':
-            return np.rollaxis(self.representative_sample().shape[1:].shape[1:], 2, 0)
+            return np.rollaxis(self.representative_sample(), 3, 1).shape[1:]
 
 class GeneratorCKPlus():
     def __init__(self, path, n_channels=1, data_format='channels_last'):
@@ -101,7 +101,7 @@ class GeneratorCKPlus():
         if self.data_format == 'channels_last':
             return self.x_train.shape[1:]
         elif self.data_format == 'channels_first':
-            return np.rollaxis(self.x_train.shape[1:], 2, 0)
+            return np.rollaxis(self.x_train, 3, 1).shape[1:]
 
 class GeneratorMLMNIST():
     def __init__(self, path, data_format='channels_last'):
@@ -131,4 +131,4 @@ class GeneratorMLMNIST():
         if self.data_format == 'channels_last':
             return self.x_train.shape[1:]
         elif self.data_format == 'channels_first':
-            return np.rollaxis(self.x_train.shape[1:], 2, 0)
+            return np.rollaxis(self.x_train, 3, 1).shape[1:]
