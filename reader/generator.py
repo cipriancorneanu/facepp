@@ -90,7 +90,7 @@ class GeneratorCKPlus():
 
     def load_validation(self):
         if self.data_format == 'channels_first':
-            x_test = np.rollaxis(self.x_test, 3, 1)
+            self.x_test = np.rollaxis(self.x_test, 3, 1)
 
         return (self.x_test, self.y_test)
 
@@ -104,7 +104,10 @@ class GeneratorCKPlus():
             return np.rollaxis(self.x_train, 3, 1).shape[1:]
 
     def representative_sample(self):
-        return self.x_train
+        if self.data_format == 'channels_last':
+            return self.x_train
+        elif self.data_format == 'channels_first':
+            return np.rollaxis(self.x_train, 3, 1)
 
 class GeneratorMLMNIST():
     def __init__(self, path, data_format='channels_last'):
@@ -123,7 +126,7 @@ class GeneratorMLMNIST():
 
     def load_validation(self):
         if self.data_format == 'channels_first':
-            x_test = np.rollaxis(self.x_test, 3, 1)
+            self.x_test = np.rollaxis(self.x_test, 3, 1)
 
         return (self.x_test, self.y_test)
 
@@ -137,4 +140,7 @@ class GeneratorMLMNIST():
             return np.rollaxis(self.x_train, 3, 1).shape[1:]
 
     def representative_sample(self):
-        return self.x_train
+        if self.data_format == 'channels_last':
+            return self.x_train
+        elif self.data_format == 'channels_first':
+            return np.rollaxis(self.x_train, 3, 1)
