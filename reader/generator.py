@@ -15,7 +15,7 @@ class GeneratorFera2017():
         #Iterate through mega_batches infinitely
         while True:
             # Load mega batch from file
-            fera = cPickle.load(open(self.path+'fera17_train_' + str(mega_batch%self.N), 'rb'))
+            fera = cPickle.load(open(self.path+'train/fera17_train_' + str(mega_batch%self.N), 'rb'))
             x, y = (fera['ims'], fera['occ'])
 
             if self.data_format == 'channels_first':
@@ -33,7 +33,7 @@ class GeneratorFera2017():
         mega_batch, n = (0, 0)
         while mega_batch < self.N:
             # Load mega batch from file
-            y = cPickle.load(open(self.path+'fera17_train_' + str(mega_batch), 'rb'))['occ']
+            y = cPickle.load(open(self.path+'train/fera17_train_' + str(mega_batch), 'rb'))['occ']
             mega_batch += 1
             n += len(y)
         return n
@@ -42,13 +42,13 @@ class GeneratorFera2017():
         mega_batch, n = (0, 0)
         while mega_batch < self.N:
         # Load mega batch from file
-            y = cPickle.load(open(self.path+'fera17_train_' + str(mega_batch), 'rb'))['occ']
+            y = cPickle.load(open(self.path+'train/fera17_train_' + str(mega_batch), 'rb'))['occ']
             mega_batch += 1
             n += len(y)//mini_batch_size
         return augment*n
 
     def representative_sample(self):
-        return cPickle.load(open(self.path+'fera17_train_0' , 'rb'))['ims']
+        return cPickle.load(open(self.path+'train/fera17_train_0' , 'rb'))['ims']
 
     def load_validation(self):
         # Validation data
