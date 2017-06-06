@@ -54,7 +54,7 @@ class GeneratorFera2017():
     def load_validation(self):
         # Validation data
         x_test, y_test = ([],[])
-        for bat in [0,3]:
+        for bat in range(10):
             dt = cPickle.load(open(self.path+'validation/'+'fera17_' + str(bat), 'rb'))
             x_test.append(dt['ims'])
             y_test.append(dt['occ'])

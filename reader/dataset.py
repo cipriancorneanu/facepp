@@ -212,7 +212,7 @@ class ReaderFera2017():
 
                 seq['int'][0] = [x for x in seq['int'][0][7:]]
 
-                if self._valid_intensity() and self._valid_occurence():
+                if self._valid_intensity(seq) and self._valid_occurence(seq):
                     # Filter junk
                     ims, geoms, occ, int = self._filter_junk(np.asarray(seq['ims'][0], dtype=np.uint8),
                                                                    np.asarray(seq['geoms'][0], dtype=np.float16),
@@ -259,7 +259,11 @@ class ReaderFera2017():
         dt['ims'] = np.concatenate(dt['ims'])[shuffle]
         dt['geoms'] = np.concatenate(dt['geoms'])[shuffle]
         dt['occ'] = np.concatenate(dt['occ'])[shuffle]
+
+        print [x.shape for x in dt['int']]
+        
         dt['int'] = np.concatenate(dt['int'])[shuffle]
+        
         dt['subjects'] = np.concatenate(dt['subjects'])[shuffle]
         dt['tasks'] = np.concatenate(dt['tasks'])[shuffle]
         dt['poses'] = np.concatenate(dt['poses'])[shuffle]
@@ -282,16 +286,24 @@ class ReaderFera2017():
     def _valid_intensity(self, seq):
         seq_length = len(np.asarray(seq['occ'][0]))
 
-        if np.asarray(seq['int'][0]).shape<2:
+        if len(np.asarray(seq['int'][0]).shape)<2:
+            print ('\tNo intensity labels.')
             return False
         elif np.asarray(seq['int'][0]).shape[1]!=seq_length:
+            print('\tIntensity labels number doesn\'t match the other labels')
+            return False
+        elif np.asarray(seq['int'][0]).shape[0]!=7:
+            print('\tNumber of intensity classes is lower than expected.')
             return False
         else:
             return True
 
     def _valid_occurence(self, seq):
         occ = np.asarray(seq['occ'][0], dtype=np.uint8)
-        if max(occ)>1:
+        max_value = np.amax(occ)
+        
+        if max_value>1:
+            print('\tMax value of occurence is {}'.format(max_value))
             return False
         else:
             return True
