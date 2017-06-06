@@ -97,3 +97,4 @@ def frontalize(img, proj_matrix, ref_U, eyemask):
         return frontal_raw, frontal_sym, 1
     else: # both sides are occluded pretty much to the same extent -- do not use symmetry
         return frontal_raw, frontal_raw, 0
+

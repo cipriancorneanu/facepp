@@ -3,6 +3,7 @@ __author__ = 'cipriancorneanu'
 import cPickle
 import numpy as np
 import gc
+from skimage.transform import resize
 
 class GeneratorFera2017():
     def __init__(self, path, data_format='channels_last', N=15):

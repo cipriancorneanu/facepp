@@ -212,17 +212,20 @@ class ReaderFera2017():
 
                 seq['int'][0] = [x for x in seq['int'][0][7:]]
 
-                # Filter junk
-                ims, geoms, occ, int = self._filter_junk(np.asarray(seq['ims'][0], dtype=np.uint8),
-                                                               np.asarray(seq['geoms'][0], dtype=np.float16),
-                                                               np.asarray(seq['occ'][0], dtype=np.uint8),
-                                                               np.transpose(np.asarray(seq['int'][0], dtype=np.uint8)))
+                if self._valid_intensity() and self._valid_occurence():
+                    # Filter junk
+                    ims, geoms, occ, int = self._filter_junk(np.asarray(seq['ims'][0], dtype=np.uint8),
+                                                                   np.asarray(seq['geoms'][0], dtype=np.float16),
+                                                                   np.asarray(seq['occ'][0], dtype=np.uint8),
+                                                                   np.transpose(np.asarray(seq['int'][0], dtype=np.uint8)))
 
-                # Accumulate data
-                dt = self._accumulate_data(dt, ims, geoms, occ, int,
-                                        subjects = [seq['subjects'][0] for i in range(0, len(seq['occ'][0]))],
-                                        tasks = [seq['tasks'][0] for i in range(0, len(seq['occ'][0]))],
-                                        poses = [seq['poses'][0] for i in range(0, len(seq['occ'][0]))])
+                    # Accumulate data
+                    dt = self._accumulate_data(dt, ims, geoms, occ, int,
+                                            subjects = [seq['subjects'][0] for i in range(0, len(seq['occ'][0]))],
+                                            tasks = [seq['tasks'][0] for i in range(0, len(seq['occ'][0]))],
+                                            poses = [seq['poses'][0] for i in range(0, len(seq['occ'][0]))])
+                else:
+                    print('     File {} does not have consistent valid labels. Ignore.'.format(f))
 
             if len(dt['occ'])>0:
                 # Vectorize and shuffle
@@ -275,6 +278,23 @@ class ReaderFera2017():
             ims, geom, occ, int = (ims[mask,...], geoms[mask,...], occ[mask,...], int[mask,...])
 
         return ims, geoms, occ, int
+
+    def _valid_intensity(self, seq):
+        seq_length = len(np.asarray(seq['occ'][0]))
+
+        if np.asarray(seq['int'][0]).shape<2:
+            return False
+        elif np.asarray(seq['int'][0]).shape[1]!=seq_length:
+            return False
+        else:
+            return True
+
+    def _valid_occurence(self, seq):
+        occ = np.asarray(seq['occ'][0], dtype=np.uint8)
+        if max(occ)>1:
+            return False
+        else:
+            return True
 
     def _read_au_intensities(self, root, subject, task):
         dt = [None] * len(self.aus_int)
@@ -651,4 +671,5 @@ def patch(patches, positions, shape=(64,64)):
     return np.asarray(np.clip(np.sum(output, axis=0), 0, 255), dtype=np.uint8)
 
 if __name__ == '__main__':
-    generate_ml_mnist()
+    reader = ReaderFera2017('/Users/cipriancorneanu/Research/data/fera2017/validation/')
+    reader.read_batches(10)
