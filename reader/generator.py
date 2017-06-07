@@ -51,8 +51,16 @@ class GeneratorFera2017():
     def representative_sample(self):
         return cPickle.load(open(self.path+'train/fera17_train_0' , 'rb'))['ims']
 
+    def load_train(self):
+        x_train, y_train = ([], [])
+        for bat in range(15):
+            dt = cPickle.load(open(self.path+'train/'+'fera17_' + str(bat), 'rb'))
+            x_train.append(dt['ims'])
+            y_train.append(dt['occ'])
+
+        return (np.concatenate(x_train), np.concatenate(y_train))
+
     def load_validation(self):
-        # Validation data
         x_test, y_test = ([],[])
         for bat in range(10):
             dt = cPickle.load(open(self.path+'validation/'+'fera17_' + str(bat), 'rb'))
