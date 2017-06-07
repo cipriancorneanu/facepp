@@ -54,7 +54,7 @@ class GeneratorFera2017():
     def load_train(self):
         x_train, y_train = ([], [])
         for bat in range(15):
-            dt = cPickle.load(open(self.path+'train/'+'fera17_' + str(bat), 'rb'))
+            dt = cPickle.load(open(self.path+'train/'+'fera17_train_' + str(bat), 'rb'))
             x_train.append(dt['ims'])
             y_train.append(dt['occ'])
 
