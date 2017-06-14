@@ -79,10 +79,11 @@ class GeneratorFera2017():
 
     def class_imbalance(self):
         y = []
-        for bat in range(self.n_batches_train):
-            dt = cPickle.load(open(self.path+'train/'+'fera17_train_' + str(bat), 'rb'))
+        for bat in range(5):
+            dt = cPickle.load(open(self.path+'train/'+'fera17_train_aug_' + str(bat), 'rb'))
             y.append(dt['occ'])
-
+        y = np.concatenate(y)
+        
         return [np.sum(y[:,x])/y.shape[0] for x in range(10)]
 
     def augment(self):
@@ -112,7 +113,7 @@ class GeneratorFera2017():
             return np.exp(x) / np.sum(np.exp(x), axis=0)
 
         # Apply augmentation
-        for mega_batch in range(2'''self.n_batches_train'''):
+        for mega_batch in range(self.n_batches_train):
             print('Loading mega batch {}'.format(mega_batch))
             dt = cPickle.load(open(self.path+'train/'+'fera17_train_' + str(mega_batch), 'rb'))
 
@@ -121,9 +122,9 @@ class GeneratorFera2017():
             pdf = softmax([8*max(0,0.5-x) for x in [0.20, 0.19, 0.45, 0.56, 0.59, 0.56, 0.48, 0.16, 0.35, 0.16]])
             positives = [np.where(dt['occ'][:,au]==1)[0] for au in range(10)]
 
-            n_classes, n_choices = 10, 100
+            n_classes, n_choices  = 10, 100
             aus = np.random.choice(n_classes, n_choices, p=pdf)
-            aug_idx = np.concatenate([np.random.choice(positives[au], dt['occ'].shape[0]/n_choices) for au in aus if positives[au].size])
+            aug_idx = np.concatenate([np.random.choice(positives[au], .5*dt['occ'].shape[0]/n_choices) for au in aus if positives[au].size])
 
             # Augment selected images
             aug_ims = seq.augment_images(dt['ims'][aug_idx])
@@ -138,8 +139,7 @@ class GeneratorFera2017():
             dt['geoms'] = np.concatenate((dt['geoms'], dt['geoms'][aug_idx]))
 
             print('Dumping augmented mega batch {}'.format(mega_batch))
-            cPickle.dump(dt, open(self.path+'train/fera17_train_aug_' + str(mega_batch) + '.pkl', 'wb'),
-                         cPickle.HIGHEST_PROTOCOL)
+            cPickle.dump(dt, open(self.path+'train/fera17_train_aug_' + str(mega_batch), 'wb'), cPickle.HIGHEST_PROTOCOL)
 
 class GeneratorCKPlus():
     def __init__(self, path, n_channels=1, data_format='channels_last'):
@@ -221,13 +221,14 @@ class GeneratorMLMNIST():
             return np.rollaxis(self.x_train, 3, 1)
 
 if __name__ == '__main__':
-    path = '/home/corneanu/data/fera2017/train/'
+    path = '/home/corneanu/data/fera2017/'
     dtg = GeneratorFera2017(path)
-
-    print dtg.class_imbalance()
+    '''
     dtg.augment()
-    print dtg.class_imbalance()
+    '''
 
+    print(dtg.class_imbalance())
+    
     '''
     import matplotlib.pyplot as plt
 
