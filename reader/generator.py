@@ -7,17 +7,18 @@ from skimage.transform import resize
 from imgaug.imgaug import augmenters as iaa
 
 class GeneratorFera2017():
-    def __init__(self, path, data_format='channels_last', N=15):
+    def __init__(self, path, data_format='channels_last', nbt=15, nbv=10):
         self.path = path
         self.data_format = data_format
-        self.N = N
+        self.n_batches_train = nbt
+        self.n_batches_validation = nbv
 
     def generate(self, datagen, mini_batch_size=32):
         mega_batch = 0
         #Iterate through mega_batches infinitely
         while True:
             # Load mega batch from file
-            fera = cPickle.load(open(self.path+'train/fera17_train_' + str(mega_batch%self.N), 'rb'))
+            fera = cPickle.load(open(self.path+'train/fera17_train_' + str(mega_batch%self.n_batches_train), 'rb'))
             x, y = (fera['ims'], fera['occ'])
 
             if self.data_format == 'channels_first':
@@ -33,7 +34,7 @@ class GeneratorFera2017():
 
     def n_samples(self):
         mega_batch, n = (0, 0)
-        while mega_batch < self.N:
+        while mega_batch < self.n_batches_train:
             # Load mega batch from file
             y = cPickle.load(open(self.path+'train/fera17_train_' + str(mega_batch), 'rb'))['occ']
             mega_batch += 1
@@ -42,7 +43,7 @@ class GeneratorFera2017():
 
     def n_iterations(self, augment, mini_batch_size):
         mega_batch, n = (0, 0)
-        while mega_batch < self.N:
+        while mega_batch < self.n_batches_train:
         # Load mega batch from file
             y = cPickle.load(open(self.path+'train/fera17_train_' + str(mega_batch), 'rb'))['occ']
             mega_batch += 1
@@ -54,7 +55,7 @@ class GeneratorFera2017():
 
     def load_train(self):
         x_train, y_train = ([], [])
-        for bat in range(15):
+        for bat in range(self.n_batches_train):
             dt = cPickle.load(open(self.path+'train/'+'fera17_train_' + str(bat), 'rb'))
             x_train.append(dt['ims'])
             y_train.append(dt['occ'])
@@ -63,7 +64,7 @@ class GeneratorFera2017():
 
     def load_validation(self):
         x_test, y_test = ([],[])
-        for bat in range(10):
+        for bat in range(self.n_batches_validation):
             dt = cPickle.load(open(self.path+'validation/'+'fera17_' + str(bat), 'rb'))
             x_test.append(dt['ims'])
             y_test.append(dt['occ'])
@@ -78,7 +79,7 @@ class GeneratorFera2017():
 
     def class_imbalance(self):
         y = []
-        for bat in range(15):
+        for bat in range(self.n_batches_train):
             dt = cPickle.load(open(self.path+'train/'+'fera17_train_' + str(bat), 'rb'))
             y.append(dt['occ'])
 
@@ -111,7 +112,7 @@ class GeneratorFera2017():
             return np.exp(x) / np.sum(np.exp(x), axis=0)
 
         # Apply augmentation
-        for mega_batch in range(2):
+        for mega_batch in range(2'''self.n_batches_train'''):
             print('Loading mega batch {}'.format(mega_batch))
             dt = cPickle.load(open(self.path+'train/'+'fera17_train_' + str(mega_batch), 'rb'))
 
