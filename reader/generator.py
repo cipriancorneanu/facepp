@@ -109,9 +109,9 @@ class GeneratorFera2017():
 
     def class_imbalance(self):
         y = []
-        for bat in range(5):
-            dt = cPickle.load(open(self.path+'train/'+'fera17_train_aug_' + str(bat), 'rb'))
-            y.append(dt['occ'])
+        for bat in range(self.n_batches_train):
+            with h5py.File(self.path+'train/'+'fera17_train_aug_'+str(bat)+'.h5', 'r') as hf:
+                y.append(hf['dt']['occ'][()])
         y = np.concatenate(y)
         
         return [np.sum(y[:,x])/y.shape[0] for x in range(10)]
@@ -175,11 +175,8 @@ class GeneratorFera2017():
             print('Dumping augmented mega batch {}'.format(mega_batch))
             file = h5py.File(self.path+'train/fera17_train_aug_' + str(mega_batch)+'.h5', 'w')
             grp = file.create_group('dt')
-
             for k,v in dt.items():
                 grp.create_dataset(k, data=v)
-
-            #cPickle.dump(dt, open(self.path+'train/fera17_train_aug_' + str(mega_batch), 'wb'), cPickle.HIGHEST_PROTOCOL)
 
 class GeneratorCKPlus():
     def __init__(self, path, n_channels=1, data_format='channels_last'):
@@ -265,15 +262,4 @@ if __name__ == '__main__':
     path_local = '/Users/cipriancorneanu/Research/data/fera2017/'
     dtg = GeneratorFera2017(path_local)
     dtg.augment()
-
-    #dtg.load_augmented_train()
-
-    '''
-    import matplotlib.pyplot as plt
-
-    fera = cPickle.load(open(path+'fera17_train_aug_1', 'rb'))
-
-    for i in np.random.choice(fera['ims'].shape[0], 20):
-        plt.imshow(fera['ims'][i])
-        plt.savefig(path + str(i) + '.png')
-    '''
+    print(dtg.class_imbalance())
