@@ -110,10 +110,19 @@ class GeneratorFera2017():
     def class_imbalance(self):
         y = []
         for bat in range(self.n_batches_train):
+            dt = cPickle.load(open(self.path+'train/'+'fera17_' + str(bat), 'rb'))
+            y.append(dt['occ'])
+        y = np.concatenate(y)
+
+        return [np.sum(y[:,x])/y.shape[0] for x in range(10)]
+
+    def class_imbalance_augmented(self):
+        y = []
+        for bat in range(self.n_batches_train):
             with h5py.File(self.path+'train/'+'fera17_train_aug_'+str(bat)+'.h5', 'r') as hf:
                 y.append(hf['dt']['occ'][()])
         y = np.concatenate(y)
-        
+
         return [np.sum(y[:,x])/y.shape[0] for x in range(10)]
 
     def augment(self):
@@ -143,7 +152,7 @@ class GeneratorFera2017():
             return np.exp(x) / np.sum(np.exp(x), axis=0)
 
         # Apply augmentation
-        for mega_batch in range(1):
+        for mega_batch in range(self.n_batches_train):
             print('Loading mega batch {}'.format(mega_batch))
             dt = cPickle.load(open(self.path+'train/'+'fera17_train_' + str(mega_batch), 'rb'))
 
