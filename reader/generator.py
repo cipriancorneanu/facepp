@@ -71,6 +71,16 @@ class GeneratorFera2017():
             n += len(y)//mini_batch_size
         return augment*n
 
+    def n_iterations_augmented(self, augment, mini_batch_size):
+        mega_batch, n = (0, 0)
+
+        while mega_batch < self.n_batches_train:
+            with h5py.File(self.path+'train/'+'fera17_train_aug_'+str(mega_batch)+'.h5', 'r') as hf:
+                y = hf['dt']['occ'][()]
+            mega_batch += 1
+            n += len(y)//mini_batch_size
+        return augment*n
+
     def representative_sample(self):
         return cPickle.load(open(self.path+'train/fera17_train_0' , 'rb'))['ims']
 
