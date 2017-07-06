@@ -14,27 +14,6 @@ class GeneratorFera2017():
         self.n_batches_train = nbt
         self.n_batches_validation = nbv
 
-    '''
-    def generate(self, datagen, mini_batch_size=32):
-        mega_batch = 0
-        #Iterate through mega_batches infinitely
-        while True:
-            # Load mega batch from file
-            fera = cPickle.load(open(self.path+'train/fera17_train_' + str(mega_batch%self.n_batches_train), 'rb'))
-            x, y = (fera['ims'], fera['occ'])
-
-            if self.data_format == 'channels_first':
-                x = np.rollaxis(x, 3, 1)
-
-            # Yield as many mini_batches as it fits the mega_batch_size
-            for i, (x_batch, y_batch) in enumerate(datagen.flow(x, y, batch_size=mini_batch_size)):
-                if i==x.shape[0]//mini_batch_size: break
-                yield (x_batch, y_batch)
-
-            mega_batch += 1
-            gc.collect()
-    '''
-
     def generate(self, datagen, mini_batch_size=32):
         mega_batch = 0
         #Iterate through mega_batches infinitely

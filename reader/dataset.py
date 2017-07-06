@@ -15,6 +15,7 @@ from reader import *
 import time
 from joblib import Parallel, delayed
 import random
+import h5py
 
 class ReaderOuluCasia():
     def __init__(self, path):
@@ -132,7 +133,7 @@ class ReaderFera2017():
                     if os.path.exists(vidname) and os.path.exists(occname):
                         dt = {'ims': [], 'geoms': [], 'occ':[], 'int':[], 'subjects':[], 'tasks':[], 'poses':[]}
                         start_time = time.time()
-                        ims = read_video(vidname, colorspace='L')
+                        ims = read_video(vidname, colorspace='RGB')
                         print 'Reading video file {} in {}s'.format(vidname, (time.time() - start_time))
 
                         occ = read_csv(occname)
@@ -485,13 +486,19 @@ class ReaderDisfa():
         self.path_vidl = path + 'Video_LeftCamera/'
         self.path_vidr = path + 'Video_RightCamera/'
 
-    def read(self, fname):
+    def read(self, fname, mpath, do_align=True, cores=4):
         if os.path.exists(self.path+fname):
             return cPickle.load(open(self.path+fname, 'rb'))
 
         dt = {'images':[], 'landmarks':[], 'aus':[], 'subjects':[]}
 
         subjects = sorted([f for f in os.listdir(self.path_au)])
+
+        # Load alignment models
+        check_dlib_landmark_weights(mpath + 'shape_predictor_models')
+        predictor = dlib.shape_predictor(mpath + 'shape_predictor_models/shape_predictor_68_face_landmarks.dat')
+        model3D = ThreeD_Model(mpath + 'frontalization_models/model3Ddlib.mat', 'model_dlib')
+        eyemask = np.asarray(io.loadmat(mpath + 'frontalization_models/eyemask.mat')['eyemask'])
 
         print('###### READING DISFA DATASET ######')
 
@@ -504,14 +511,35 @@ class ReaderDisfa():
             im_seq = read_video(self.path_vidl+'LeftVideo'+subject+'_comp.avi')
 
             # Extract face and resize
-            S = map(list, zip(*[extract(i,l) for i,l in zip(im_seq, lm_seq)]))
+            print '     Extract faces and resize '
+            faces = Parallel(n_jobs=cores)(delayed(extract_face)(i,im) for i,im in enumerate(im_seq))
 
-            dt['images'].append(S[0])
-            dt['landmarks'].append(S[1])
+            if do_align:
+                print '     Align faces'
+                aligned = [align(i, face, model3D, eyemask, predictor) if face_detected
+                           else (np.zeros((face.shape[0], face.shape[1], 3)), np.zeros((68,2)))
+                           for i,(face_detected,face) in enumerate(faces)]
+
+                afaces, ageoms = (np.asarray([x[0] for x in aligned], dtype=np.uint8),
+                                  np.asarray([x[1] for x in aligned], dtype=np.float16))
+
+                dt['images'].append(afaces)
+                dt['landmarks'].append(ageoms)
+            else :
+                #TODO: not tested
+                S = map(list, zip(*[extract(i,l,1.05,224) for i,l in zip(im_seq, lm_seq)]))
+                dt['images'].append(S[0])
+                dt['landmarks'].append(S[1])
+
             dt['aus'].append(self._vectorize_au_sequence(au_seq))
             dt['subject'].append(subject)
 
-        cPickle.dump(dt, open(self.path+fname, 'wb'), cPickle.HIGHEST_PROTOCOL)
+            print('Dumping subject {}'.format(subject))
+            file = h5py.File(self.path+'disfa_subject_' + str(subject)+'.h5', 'w')
+            grp = file.create_group('dt')
+            for k,v in dt.items():
+                grp.create_dataset(k, data=v)
+
         return dt
 
     def _vectorize_au_sequence(self, au_seq):
