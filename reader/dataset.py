@@ -512,11 +512,11 @@ class ReaderDisfa():
 
             # Extract face and resize
             print '     Extract faces and resize '
-            faces = Parallel(n_jobs=cores)(delayed(extract_face)(i,im) for i,im in enumerate(im_seq))
+            faces = Parallel(n_jobs=cores)(delayed(extract_face)(i,im,ext=1.1,sz=224,verbose=True) for i,im in enumerate(im_seq))
 
             if do_align:
                 print '     Align faces'
-                aligned = [align(i, face, model3D, eyemask, predictor) if face_detected
+                aligned = [align(i, face, model3D, eyemask, predictor, verbose=True) if face_detected
                            else (np.zeros((face.shape[0], face.shape[1], 3)), np.zeros((68,2)))
                            for i,(face_detected,face) in enumerate(faces)]
 
@@ -532,7 +532,7 @@ class ReaderDisfa():
                 dt['landmarks'].append(S[1])
 
             dt['aus'].append(self._vectorize_au_sequence(au_seq))
-            dt['subject'].append(subject)
+            dt['subjects'].append(subject)
 
             print('Dumping subject {}'.format(subject))
             file = h5py.File(self.path+'disfa_subject_' + str(subject)+'.h5', 'w')

@@ -15,8 +15,7 @@ def read_folder(path, sorter=None):
     return [read_txt(path+file) if ext=='txt' else
             read_video(path+file) if ext=='avi' else
             read_mat(path+file) if ext=='mat' else
-            read_image(path+file, colorspace='RGB') for ext, file in zip(extensions, files)
-            if ext in ['jpg', 'jpeg', 'JPEG', 'png']]
+            read_image(path+file, colorspace='RGB') for ext, file in zip(extensions, files)]
 
 def get_files(path, sorter=None):
     # Get files from path by filtering hidden and directories
@@ -40,7 +39,7 @@ def read_video(fname, colorspace='RGB'):
 
     if colorspace=='L':
         return np.asarray([np.asarray(255*skimage.color.rgb2gray(frame), dtype=np.uint8) for frame in frames])
-    elif colorspace == 'RGB':
+    elif colorspace=='RGB':
         return frames
 
 def read_image(fname, colorspace='L'):
