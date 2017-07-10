@@ -503,7 +503,7 @@ class ReaderDisfa():
         for subject in subjects:
             print('Reading subject ' + subject)
 
-            edt = {'images':[], 'landmarks':[], 'aus':[], 'subjects':[]}
+            dt = {'images':[], 'landmarks':[], 'aus':[], 'subjects':[]}
             lm_seq = np.asarray([np.fliplr(x['pts'])
                                  for x in read_folder(self.path_lm+subject+'/'+'frame_lm/', self._lm_file_sorter)])
             au_seq = read_folder(self.path_au+subject+'/', self._au_file_sorter)
@@ -515,7 +515,7 @@ class ReaderDisfa():
 
             if do_align:
                 print '     Align faces'
-                aligned = [align(i, face, model3D, eyemask, predictor, verbose=True) if face_detected
+                aligned = [align(i, face, model3D, eyemask, predictor, do_frontalize=False, verbose=True) if face_detected
                            else (np.zeros((face.shape[0], face.shape[1], 3)), np.zeros((68,2)))
                            for i,(face_detected,face) in enumerate(faces)]
 

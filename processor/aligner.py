@@ -8,21 +8,27 @@ import cv2
 import numpy as np
 import time
 
-def affine_align(face, geom, kpts=(range(36,41), range(42, 47), range(48,67))):
+def affine_align(face, geom=None, geom_predictor=None, kpts=(range(36,41), range(42, 47), range(48,67))):
     '''
     Perform alignment based on affine transformation computed using three points, left eye, right eye, mouth.
     The landmarks corresponding to the three parts of the face have to be predefined.
     '''
+    if not geom and not geom_predictor:
+        raise Exception('You must either provide geometry or a geometry predictor')
+
+    if not geom:
+        # Estimate facial geometry of input face
+        geom = np.squeeze(get_landmarks(face, geom_predictor))
 
     ref_t = np.float32(np.asarray([[110, 100], [210, 100], [162, 200]])) # Reference size is (320, 320)
     act_t = np.asarray([np.mean(geom[k,:], axis=0) for k in kpts])
 
     T = cv2.getAffineTransform(act_t, ref_t)
 
-    aface = cv2.warpAffine(face, T, (320, 320))
-    ageom = np.transpose(np.dot(T, np.transpose(np.hstack((geom, np.ones((68,1)))))))
-
-    return aface, ageom
+    return (
+        cv2.warpAffine(face, T, (320, 320)),
+        np.transpose(np.dot(T, np.transpose(np.hstack((geom, np.ones((68,1)))))))
+    )
 
 def sym_align(face, model3D, eyemask, shape_predictor):
     '''
@@ -47,7 +53,7 @@ def sym_align(face, model3D, eyemask, shape_predictor):
 
         if not frontalized:
             # Rely on affine alignment only
-            face, geom = affine_align(face, geom)
+            face, geom = affine_align(face, geom=geom, geom_predictor=None)
         else:
             # Estimate facial geometry of frontalized face
             geom = np.squeeze(get_landmarks(frontal_sym, shape_predictor))
@@ -102,9 +108,12 @@ def batch_align(faces, model3D, eyemask, predictor):
 
     return afaces, ageoms
 
-def align(i, face, model3D, eyemask, predictor, verbose=False):
+def align(i, face, model3D, eyemask, predictor, do_frontalize=True, verbose=False):
     # Align face and geometry
-    aface, ageom = sym_align(face, model3D, eyemask, predictor)
+    if do_frontalize:
+        aface, ageom = sym_align(face, model3D, eyemask, predictor)
+    else:
+        aface, ageom = affine_align(face, geom=None, geom_predictor=predictor)
 
     if verbose:
         print '         Alignining face {}'.format(i)
