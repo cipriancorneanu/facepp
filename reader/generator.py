@@ -7,7 +7,7 @@ import gc
 from sklearn.utils import shuffle
 from imgaug.imgaug import augmenters as iaa
 
-class GeneratorFera2017():
+class GeneratorFera2017(object):
     def __init__(self, path, data_format='channels_last', nbt=15, nbv=10):
         self.path = path
         self.data_format = data_format
@@ -161,7 +161,7 @@ class GeneratorFera2017():
 
 class GeneratorFera2017_SI(GeneratorFera2017):
     def __init__(self, path, data_format='channels_last', nbt=15, nbv=10):
-        super(GeneratorFera2017_SI, self).__init__(path, data_format='channels_last', nbt=15, nbv=10)
+        super(GeneratorFera2017_SI, self).__init__(path=path, data_format=data_format, nbt=nbt, nbv=nbv)
 
     def generate(self, datagen, mini_batch_size=32):
         mega_batch = 0
@@ -183,7 +183,7 @@ class GeneratorFera2017_SI(GeneratorFera2017):
 
 class GeneratorFera2017_MI(GeneratorFera2017):
     def __init__(self, path, data_format='channels_last', nbt=15, nbv=10):
-        super(GeneratorFera2017_MI, self).__init__(path, data_format='channels_last', nbt=15, nbv=10)
+        super(GeneratorFera2017_MI, self).__init__(path=path, data_format=data_format, nbt=ntb, nbv=nbv)
 
     def generate(self, datagen, mini_batch_size=32):
         # TODO: scale geoms to size before yielding

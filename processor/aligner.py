@@ -13,6 +13,8 @@ def affine_align(face, geom=None, geom_predictor=None, kpts=(range(36,41), range
     Perform alignment based on affine transformation computed using three points, left eye, right eye, mouth.
     The landmarks corresponding to the three parts of the face have to be predefined.
     '''
+    h, w = face.shape[0], face.shape[1]
+
     if not geom and not geom_predictor:
         raise Exception('You must either provide geometry or a geometry predictor')
 
@@ -20,15 +22,29 @@ def affine_align(face, geom=None, geom_predictor=None, kpts=(range(36,41), range
         # Estimate facial geometry of input face
         geom = np.squeeze(get_landmarks(face, geom_predictor))
 
-    ref_t = np.float32(np.asarray([[110, 100], [210, 100], [162, 200]])) # Reference size is (320, 320)
-    act_t = np.asarray([np.mean(geom[k,:], axis=0) for k in kpts])
+    if len(geom)>0:
+    	ref_t = np.float32(np.asarray([[110, 100], [210, 100], [162, 200]])) # Reference size is (320, 320)
+    	act_t = np.asarray([np.mean(geom[k,:], axis=0) for k in kpts])
 
-    T = cv2.getAffineTransform(act_t, ref_t)
+    	T = cv2.getAffineTransform(act_t, ref_t)
 
-    return (
-        cv2.warpAffine(face, T, (320, 320)),
-        np.transpose(np.dot(T, np.transpose(np.hstack((geom, np.ones((68,1)))))))
-    )
+	face = cv2.warpAffine(face, T, (320, 320))
+	geom = np.transpose(np.dot(T, np.transpose(np.hstack((geom, np.ones((68,1)))))))
+
+        # Get ROI around detected facial geometry and add border
+        border = 10
+        minx, miny = [int(x-border) for x in np.min(geom, axis=0)]
+        maxx, maxy = [int(x+border) for x in np.max(geom, axis=0)]
+
+        # Resize to input size
+        rh, rw = h/float(maxx-minx), w/float(maxy-miny)
+        aface = imresize(face[miny:maxy, minx:maxx, ...], (h,w))
+        ageom = (geom - (minx, miny)) * (rh, rw)
+
+    	return (aface, ageom)
+    else:
+	print 'Geometry could not be estimated.'
+	return (face, np.zeros((68,2)))
 
 def sym_align(face, model3D, eyemask, shape_predictor):
     '''
@@ -115,7 +131,7 @@ def align(i, face, model3D, eyemask, predictor, do_frontalize=True, verbose=Fals
     else:
         aface, ageom = affine_align(face, geom=None, geom_predictor=predictor)
 
-    if verbose:
+    if verbose and i%5==0:
         print '         Alignining face {}'.format(i)
 
     return aface, ageom

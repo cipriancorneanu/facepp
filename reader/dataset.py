@@ -511,7 +511,7 @@ class ReaderDisfa():
 
             # Extract face and resize
             print '     Extract faces and resize '
-            faces = Parallel(n_jobs=cores)(delayed(extract_face)(i,im,ext=1.1,sz=224,verbose=True) for i,im in enumerate(im_seq))
+            faces = Parallel(n_jobs=cores)(delayed(extract_face)(i,im,ext=1.1,sz=224,verbose=True) for i,im in enumerate(im_seq[:10]))
 
             if do_align:
                 print '     Align faces'
