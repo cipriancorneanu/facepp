@@ -14,24 +14,6 @@ class GeneratorFera2017():
         self.n_batches_train = nbt
         self.n_batches_validation = nbv
 
-    def generate(self, datagen, mini_batch_size=32):
-        mega_batch = 0
-        #Iterate through mega_batches infinitely
-        while True:
-            with h5py.File(self.path+'train/fera17_train_aug_' + str(mega_batch%self.n_batches_train)+'.h5', 'r') as hf:
-                x, y = (hf['dt']['ims'][()], hf['dt']['occ'][()])
-
-            if self.data_format == 'channels_first':
-                x = np.rollaxis(x, 3, 1)
-
-            # Yield as many mini_batches as it fits the mega_batch_size
-            for i, (x_batch, y_batch) in enumerate(datagen.flow(x, y, batch_size=mini_batch_size)):
-                if i==x.shape[0]//mini_batch_size: break
-                yield (x_batch, y_batch)
-
-            mega_batch += 1
-            gc.collect()
-
     def n_samples(self):
         mega_batch, n = (0, 0)
         while mega_batch < self.n_batches_train:
@@ -175,6 +157,53 @@ class GeneratorFera2017():
             grp = file.create_group('dt')
             for k,v in dt.items():
                 grp.create_dataset(k, data=v)
+
+
+class GeneratorFera2017_SI(GeneratorFera2017):
+    def __init__(self, path, data_format='channels_last', nbt=15, nbv=10):
+        super(GeneratorFera2017_SI, self).__init__(path, data_format='channels_last', nbt=15, nbv=10)
+
+    def generate(self, datagen, mini_batch_size=32):
+        mega_batch = 0
+        #Iterate through mega_batches infinitely
+        while True:
+            with h5py.File(self.path+'train/fera17_train_aug_' + str(mega_batch%self.n_batches_train)+'.h5', 'r') as hf:
+                x, y = (hf['dt']['ims'][()], hf['dt']['occ'][()])
+
+            if self.data_format == 'channels_first':
+                x = np.rollaxis(x, 3, 1)
+
+            # Yield as many mini_batches as it fits the mega_batch_size
+            for i, (x_batch, y_batch) in enumerate(datagen.flow(x, y, batch_size=mini_batch_size)):
+                if i==x.shape[0]//mini_batch_size: break
+                yield (x_batch, y_batch)
+
+            mega_batch += 1
+            gc.collect()
+
+class GeneratorFera2017_MI(GeneratorFera2017):
+    def __init__(self, path, data_format='channels_last', nbt=15, nbv=10):
+        super(GeneratorFera2017_MI, self).__init__(path, data_format='channels_last', nbt=15, nbv=10)
+
+    def generate(self, datagen, mini_batch_size=32):
+        # TODO: scale geoms to size before yielding
+
+        mega_batch = 0
+        #Iterate through mega_batches infinitely
+        while True:
+            with h5py.File(self.path+'train/fera17_train_aug_' + str(mega_batch%self.n_batches_train)+'.h5', 'r') as hf:
+                x1, x2, y = (hf['dt']['ims'][()], hf['dt']['geoms'][()], hf['dt']['occ'][()])
+
+            if self.data_format == 'channels_first':
+                x1 = np.rollaxis(x1, 3, 1)
+
+            # Randomly yield as many mini_batches as it fits the mega_batch_size without replacement
+            for i in range(x1.shape[0]//mini_batch_size):
+                batch = np.random.choice(x1.shape[0], mini_batch_size, replace=False)
+                yield ([x1[batch], x2[batch]], y[batch])
+
+            mega_batch += 1
+            gc.collect()
 
 class GeneratorCKPlus():
     def __init__(self, path, n_channels=1, data_format='channels_last'):
