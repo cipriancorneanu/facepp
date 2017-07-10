@@ -490,8 +490,6 @@ class ReaderDisfa():
         if os.path.exists(self.path+fname):
             return cPickle.load(open(self.path+fname, 'rb'))
 
-        dt = {'images':[], 'landmarks':[], 'aus':[], 'subjects':[]}
-
         subjects = sorted([f for f in os.listdir(self.path_au)])
 
         # Load alignment models
@@ -505,6 +503,7 @@ class ReaderDisfa():
         for subject in subjects:
             print('Reading subject ' + subject)
 
+            edt = {'images':[], 'landmarks':[], 'aus':[], 'subjects':[]}
             lm_seq = np.asarray([np.fliplr(x['pts'])
                                  for x in read_folder(self.path_lm+subject+'/'+'frame_lm/', self._lm_file_sorter)])
             au_seq = read_folder(self.path_au+subject+'/', self._au_file_sorter)
