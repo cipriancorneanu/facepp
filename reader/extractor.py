@@ -72,11 +72,12 @@ def extract_face(i, im, ext=1.1, sz=224, verbose=False):
 
     if dets:
         rect = [d for d in dets][0]
-        geom = np.asarray([[rect.left(), rect.top()], [rect.left(), rect.bottom()],
-                           [rect.right(), rect.top()], [rect.right(), rect.bottom()]])
+        geom = np.asarray([[rect.top(), rect.left(), ], [rect.bottom(), rect.left()],
+                           [rect.top(), rect.right(), ], [rect.bottom(), rect.right()]])
+
         face, _ , _ = extract(im, geom, extension=ext, size=sz)
 
-        if verbose:
+        if verbose and i%20==0:
             print '         Extracting face {}'.format(i)
 
         detected, face = (True, face)

@@ -16,6 +16,7 @@ import time
 from joblib import Parallel, delayed
 import random
 import h5py
+from ..frontalizer.facial_feature_detector import get_landmarks
 
 class ReaderOuluCasia():
     def __init__(self, path):
@@ -486,7 +487,7 @@ class ReaderDisfa():
         self.path_vidl = path + 'Video_LeftCamera/'
         self.path_vidr = path + 'Video_RightCamera/'
 
-    def read(self, fname, mpath, do_align=True, cores=4):
+    def read(self, fname, mpath, cores=4):
         if os.path.exists(self.path+fname):
             return cPickle.load(open(self.path+fname, 'rb'))
 
@@ -500,7 +501,7 @@ class ReaderDisfa():
 
         print('###### READING DISFA DATASET ######')
 
-        for subject in subjects:
+        for subject in subjects[1:]:
             print('Reading subject ' + subject)
 
             dt = {'images':[], 'landmarks':[], 'aus':[], 'subjects':[]}
@@ -511,24 +512,18 @@ class ReaderDisfa():
 
             # Extract face and resize
             print '     Extract faces and resize '
-            faces = Parallel(n_jobs=cores)(delayed(extract_face)(i,im,ext=1.1,sz=224,verbose=True) for i,im in enumerate(im_seq[:10]))
+            faces = Parallel(n_jobs=cores)(delayed(extract_face)(i,im,ext=1.5,sz=224,verbose=True) for i,im in enumerate(im_seq[:10]))
 
-            if do_align:
-                print '     Align faces'
-                aligned = [align(i, face, model3D, eyemask, predictor, do_frontalize=False, verbose=True) if face_detected
-                           else (np.zeros((face.shape[0], face.shape[1], 3)), np.zeros((68,2)))
-                           for i,(face_detected,face) in enumerate(faces)]
+            print '     Align faces'
+            aligned = [align(i, face, model3D, eyemask, predictor, do_frontalize=False, verbose=True) if face_detected
+                       else (np.zeros((face.shape[0], face.shape[1], 3)), np.zeros((68,2)))
+                       for i,(face_detected,face) in enumerate(faces)]
 
-                afaces, ageoms = (np.asarray([x[0] for x in aligned], dtype=np.uint8),
-                                  np.asarray([x[1] for x in aligned], dtype=np.float16))
+            afaces, ageoms = (np.asarray([x[0] for x in aligned], dtype=np.uint8),
+                              np.asarray([x[1] for x in aligned], dtype=np.float16))
 
-                dt['images'].append(afaces)
-                dt['landmarks'].append(ageoms)
-            else :
-                #TODO: not tested
-                S = map(list, zip(*[extract(i,l,1.05,224) for i,l in zip(im_seq, lm_seq)]))
-                dt['images'].append(S[0])
-                dt['landmarks'].append(S[1])
+            dt['images'].append(afaces)
+            dt['landmarks'].append(ageoms)
 
             dt['aus'].append(self._vectorize_au_sequence(au_seq))
             dt['subjects'].append(subject)
