@@ -32,11 +32,12 @@ def affine_align(face, geom=None, geom_predictor=None, kpts=(range(36,41), range
         geom = np.transpose(np.dot(T, np.transpose(np.hstack((geom, np.ones((68,1)))))))
 
         # Get ROI around detected facial geometry and add border
-        border = 30
+        border = 20
         minx, miny = [int(x-border) for x in np.min(geom, axis=0)]
         maxx, maxy = [int(x+border) for x in np.max(geom, axis=0)]
 
         # Resize to input size
+        minx, maxx, miny, maxy = max(0,minx), min(face.shape[1], maxx), max(0,miny), min(face.shape[0], maxy)
         rh, rw = h/float(maxx-minx), w/float(maxy-miny)
         aface = imresize(face[miny:maxy, minx:maxx, ...], (h,w))
         ageom = (geom - (minx, miny)) * (rh, rw)

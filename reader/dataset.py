@@ -501,7 +501,7 @@ class ReaderDisfa():
 
         print('###### READING DISFA DATASET ######')
 
-        for subject in subjects[1:]:
+        for subject in subjects:
             print('Reading subject ' + subject)
 
             dt = {'images':[], 'landmarks':[], 'aus':[], 'subjects':[]}
@@ -512,7 +512,7 @@ class ReaderDisfa():
 
             # Extract face and resize
             print '     Extract faces and resize '
-            faces = Parallel(n_jobs=cores)(delayed(extract_face)(i,im,ext=1.5,sz=224,verbose=True) for i,im in enumerate(im_seq[:10]))
+            faces = Parallel(n_jobs=cores)(delayed(extract_face)(i,im,ext=1.5,sz=224,verbose=True) for i,im in enumerate(im_seq))
 
             print '     Align faces'
             aligned = [align(i, face, model3D, eyemask, predictor, do_frontalize=False, verbose=True) if face_detected
@@ -521,6 +521,12 @@ class ReaderDisfa():
 
             afaces, ageoms = (np.asarray([x[0] for x in aligned], dtype=np.uint8),
                               np.asarray([x[1] for x in aligned], dtype=np.float16))
+
+            import matplotlib.pyplot as plt
+            for face, geom in zip(afaces, ageoms):
+                plt.imshow(face)
+                plt.scatter(geom[:,0], geom[:,1], color='g')
+                plt.show()
 
             dt['images'].append(afaces)
             dt['landmarks'].append(ageoms)
