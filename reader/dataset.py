@@ -487,13 +487,13 @@ class ReaderDisfa():
         self.path_vidl = path + 'Video_LeftCamera/'
         self.path_vidr = path + 'Video_RightCamera/'
 
-    def read(self, fname, mpath, start, stop, cores=4):
+    def read(self, fname, mpath, start, stop, video='left', cores=4):
         if os.path.exists(self.path+fname):
             return cPickle.load(open(self.path+fname, 'rb'))
 
         subjects = sorted([f for f in os.listdir(self.path_au)])
-	subjects = [subjects[i] for i in range(start, stop)]
-	print 'List of subjects: {}'.format(subjects)
+        subjects = [subjects[i] for i in range(start, stop)]
+        print 'List of subjects: {}'.format(subjects)
 
         # Load alignment models
         check_dlib_landmark_weights(mpath + 'shape_predictor_models')
@@ -510,7 +510,11 @@ class ReaderDisfa():
             lm_seq = np.asarray([np.fliplr(x['pts'])
                                  for x in read_folder(self.path_lm+subject+'/'+'frame_lm/', self._lm_file_sorter)])
             au_seq = read_folder(self.path_au+subject+'/', self._au_file_sorter)
-            im_seq = read_video(self.path_vidl+'LeftVideo'+subject+'_comp.avi')
+
+            if video=='left':
+                im_seq = read_video(self.path_vidl+'LeftVideo'+subject+'_comp.avi')
+            elif video=='right':
+                im_seq = read_video(self.path_vidr+'RigthVideo'+subject+'_comp.avi')
 
             # Extract face and resize
             print '     Extract faces and resize '
@@ -524,14 +528,6 @@ class ReaderDisfa():
             afaces, ageoms = (np.asarray([x[0] for x in aligned], dtype=np.uint8),
                               np.asarray([x[1] for x in aligned], dtype=np.float16))
 
-            '''
-            import matplotlib.pyplot as plt
-            for face, geom in zip(afaces, ageoms):
-                plt.imshow(face)
-                plt.scatter(geom[:,0], geom[:,1], color='g')
-                plt.show()
-            '''
-
             dt['images'].append(afaces)
             dt['landmarks'].append(ageoms)
 
@@ -539,7 +535,11 @@ class ReaderDisfa():
             dt['subjects'].append(subject)
 
             print('Dumping subject {}'.format(subject))
-            file = h5py.File(self.path+'disfa_subject_' + str(subject)+'.h5', 'w')
+            if video=='left':
+                file = h5py.File(self.path+'/aligned_left/disfa_subject_' + str(subject)+'.h5', 'w')
+            elif video=='right':
+                file = h5py.File(self.path+'/aligned_right/disfa_subject_' + str(subject)+'.h5', 'w')
+
             grp = file.create_group('dt')
             for k,v in dt.items():
                 grp.create_dataset(k, data=v)
