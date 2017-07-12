@@ -487,11 +487,13 @@ class ReaderDisfa():
         self.path_vidl = path + 'Video_LeftCamera/'
         self.path_vidr = path + 'Video_RightCamera/'
 
-    def read(self, fname, mpath, cores=4):
+    def read(self, fname, mpath, start, stop, cores=4):
         if os.path.exists(self.path+fname):
             return cPickle.load(open(self.path+fname, 'rb'))
 
         subjects = sorted([f for f in os.listdir(self.path_au)])
+	subjects = [subjects[i] for i in range(start, stop)]
+	print 'List of subjects: {}'.format(subjects)
 
         # Load alignment models
         check_dlib_landmark_weights(mpath + 'shape_predictor_models')
@@ -522,11 +524,13 @@ class ReaderDisfa():
             afaces, ageoms = (np.asarray([x[0] for x in aligned], dtype=np.uint8),
                               np.asarray([x[1] for x in aligned], dtype=np.float16))
 
+            '''
             import matplotlib.pyplot as plt
             for face, geom in zip(afaces, ageoms):
                 plt.imshow(face)
                 plt.scatter(geom[:,0], geom[:,1], color='g')
                 plt.show()
+            '''
 
             dt['images'].append(afaces)
             dt['landmarks'].append(ageoms)
