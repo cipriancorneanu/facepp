@@ -210,14 +210,38 @@ class GeneratorDisfa():
     def __init__(self, path):
         self.path = path
 
-    def generate(self, mini_batch_size=32):
-        with h5py.File(self.path+'disfa.h5', 'r') as hf:
-            for k,v in hf['train'].items():
-                for i in range(1, v.shape[0]/mini_batch_size):
-                    yield (v[(i-1)*mini_batch_size:i*mini_batch_size],
-                           v[(i-1)*mini_batch_size:i*mini_batch_size])
+    def generate_train(self, mini_batch_size=32):
+        while True:
+            with h5py.File(self.path+'disfa.h5', 'r') as hf:
+                for k,v in hf['train'].items():
+                    for i in range(1, v.shape[0]/mini_batch_size):
+                        yield (v[(i-1)*mini_batch_size:i*mini_batch_size],
+                               v[(i-1)*mini_batch_size:i*mini_batch_size])
             gc.collect()
 
+    def generate_test(self, mini_batch_size=32):
+        while True:
+            with h5py.File(self.path+'disfa.h5', 'r') as hf:
+                for k,v in hf['test'].items():
+                    for i in range(1, v.shape[0]/mini_batch_size):
+                        yield (v[(i-1)*mini_batch_size:i*mini_batch_size],
+                               v[(i-1)*mini_batch_size:i*mini_batch_size])
+            gc.collect()
+
+    def n_samples(self):
+        n_train, n_test = (0,0)
+        with h5py.File(self.path+'disfa.h5', 'r') as hf:
+            for k,v in hf['train'].items():
+                n_train += v.shape[0]
+            for k,v in hf['test'].items():
+                n_test += v.shape[0]
+        return n_train, n_test
+
+    def n_samples_train(self):
+        return self.n_samples()[0]
+
+    def n_samples_test(self):
+        return self.n_samples()[1]
 
 class GeneratorCKPlus():
     def __init__(self, path, n_channels=1, data_format='channels_last'):
@@ -303,5 +327,5 @@ if __name__ == '__main__':
     path_local = '/Users/cipriancorneanu/Research/data/disfa/'
     dtg = GeneratorDisfa(path_local)
 
-    print [x.shape for x,y in dtg.generate(128)]
+    print dtg.n_samples_test()
 
