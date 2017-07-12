@@ -482,6 +482,8 @@ class ReaderPain():
 class ReaderDisfa():
     def __init__(self, path):
         self.path = path
+        self.path_aligned_left = path + 'aligned_left/'
+        self.path_aligned_right = path + 'aligned_right/'
         self.path_lm = path + 'Landmark_Points/'
         self.path_au = path + 'ActionUnit_Labels/'
         self.path_vidl = path + 'Video_LeftCamera/'
@@ -514,7 +516,7 @@ class ReaderDisfa():
             if video=='left':
                 im_seq = read_video(self.path_vidl+'LeftVideo'+subject+'_comp.avi')
             elif video=='right':
-                im_seq = read_video(self.path_vidr+'RigthVideo'+subject+'_comp.avi')
+                im_seq = read_video(self.path_vidr+'RightVideo'+subject+'_comp.avi')
 
             # Extract face and resize
             print '     Extract faces and resize '
@@ -545,6 +547,47 @@ class ReaderDisfa():
                 grp.create_dataset(k, data=v)
 
         return dt
+
+    def split_train_test(self, train_idxs, test_idxs):
+        '''Read disfa aligned data and split in train and validation'''
+
+        subjects = sorted([f for f in os.listdir(self.path_aligned_left)])
+        subjects_train = [subjects[i] for i in train_idxs]
+        print 'List of train subjects: {}'.format(subjects_train)
+        subjects_test = [subjects[i] for i in test_idxs]
+        print 'List of test subjects: {}'.format(subjects_test)
+
+        # Load train data
+        dt  = []
+        for fname in subjects_train:
+            with h5py.File(self.path_aligned_left + fname, 'r') as hf:
+                x = (hf['dt']['images'][()])
+            dt.append(x)
+
+        # Shuffle and split
+        x = np.random.shuffle(x)
+        xs = np.array_split(x, x.shape[0]/1024)
+
+        # Dump
+        file = h5py.File(self.path+'/aligned_left/disfa.h5', 'w')
+        grp = file.create_group('train')
+        for i,x in enumerate(xs):
+            grp.create_dataset('segment_'+str(i), data=x)
+
+        # Load test data
+        dt  = []
+        for fname in subjects_train:
+            with h5py.File(self.path_aligned_left + fname, 'r') as hf:
+                x = (hf['dt']['images'][()])
+            dt.append(x)
+
+        # Shuffle and split
+        x = np.random.shuffle(np.asarray(dt))
+        xs = np.array_split(x, x.shape[0]/1024)
+
+        grp = file.create_group('test')
+        for i,x in enumerate(xs):
+            grp.create_dataset('segment_'+str(i), data=x)
 
     def _vectorize_au_sequence(self, au_seq):
         return np.asarray(np.transpose(np.vstack([ [int(x[0].split(',')[1]) for x in au] for au in au_seq])),
