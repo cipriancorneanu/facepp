@@ -210,35 +210,13 @@ class GeneratorDisfa():
     def __init__(self, path):
         self.path = path
 
-
     def generate(self, mini_batch_size=32):
-        while True:
-            with h5py.File(self.path+'train/fera17_train_aug_' + str(mega_batch%self.n_batches_train)+'.h5', 'r') as hf:
-                x = (hf['dt']['images'][()])
-
-            # Yield as many mini_batches as it fits the mega_batch_size
-            for i, (x_batch, y_batch) in enumerate(datagen.flow(x, y, batch_size=mini_batch_size)):
-                if i==x.shape[0]//mini_batch_size: break
-                yield (x_batch, y_batch)
-
-            mega_batch += 1
+        with h5py.File(self.path+'disfa.h5', 'r') as hf:
+            for k,v in hf['train'].items():
+                for i in range(1, v.shape[0]/mini_batch_size):
+                    yield (v[(i-1)*mini_batch_size:i*mini_batch_size],
+                           v[(i-1)*mini_batch_size:i*mini_batch_size])
             gc.collect()
-
-    def load_train(self):
-        x_train, y_train = ([], [])
-        for bat in range(self.n_batches_train):
-            dt = cPickle.load(open(self.path+'train/'+'fera17_train_' + str(bat), 'rb'))
-            x_train.append(dt['ims'])
-            y_train.append(dt['occ'])
-
-        return (np.concatenate(x_train), np.concatenate(y_train))
-
-    def load_validation(self):
-        x_test, y_test = ([],[])
-        for bat in range(self.n_batches_validation):
-            dt = cPickle.load(open(self.path+'validation/'+'fera17_' + str(bat), 'rb'))
-            x_test.append(dt['ims'])
-            y_test.append(dt['occ'])
 
 
 class GeneratorCKPlus():
@@ -321,8 +299,9 @@ class GeneratorMLMNIST():
             return np.rollaxis(self.x_train, 3, 1)
 
 if __name__ == '__main__':
-    path_server = '/home/corneanu/data/fera2017/'
-    path_local = '/Users/cipriancorneanu/Research/data/fera2017/'
-    dtg = GeneratorFera2017(path_local)
-    dtg.augment()
-    print(dtg.class_imbalance())
+    path_server = '/home/corneanu/data/disfa/'
+    path_local = '/Users/cipriancorneanu/Research/data/disfa/'
+    dtg = GeneratorDisfa(path_local)
+
+    print [x.shape for x,y in dtg.generate(128)]
+
