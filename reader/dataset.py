@@ -16,7 +16,7 @@ import time
 from joblib import Parallel, delayed
 import random
 import h5py
-from ..frontalizer.facial_feature_detector import get_landmarks
+import os.path
 
 class ReaderOuluCasia():
     def __init__(self, path):
@@ -550,26 +550,33 @@ class ReaderDisfa():
 
     def split_train_test(self, train_idxs, test_idxs):
         '''Read disfa aligned data and split in train and validation'''
-
         subjects = sorted([f for f in os.listdir(self.path_aligned_left)])
         subjects_train = [subjects[i] for i in train_idxs]
         print 'List of train subjects: {}'.format(subjects_train)
         subjects_test = [subjects[i] for i in test_idxs]
         print 'List of test subjects: {}'.format(subjects_test)
 
-        # Load train data
+        # Load train data from aligned left
         dt  = []
         for fname in subjects_train:
+            print 'Loading aligned left train file {}'.format(fname)
             with h5py.File(self.path_aligned_left + fname, 'r') as hf:
                 x = (hf['dt']['images'][()])
             dt.append(x)
+
+        for fname in subjects_train:
+            print 'Loading aligned right train file {}'.format(fname)
+            if os.path.isfile(self.path_aligned_right+fname):
+                with h5py.File(self.path_aligned_right + fname, 'r') as hf:
+                    x = (hf['dt']['images'][()])
+                dt.append(x)
 
         # Shuffle and split
         x = np.random.shuffle(x)
         xs = np.array_split(x, x.shape[0]/1024)
 
         # Dump
-        file = h5py.File(self.path+'/aligned_left/disfa.h5', 'w')
+        file = h5py.File(self.path+'/disfa.h5', 'w')
         grp = file.create_group('train')
         for i,x in enumerate(xs):
             grp.create_dataset('segment_'+str(i), data=x)
@@ -577,9 +584,17 @@ class ReaderDisfa():
         # Load test data
         dt  = []
         for fname in subjects_train:
+            print 'Loading aligned left test file {}'.format(fname)
             with h5py.File(self.path_aligned_left + fname, 'r') as hf:
                 x = (hf['dt']['images'][()])
             dt.append(x)
+
+        for fname in subjects_train:
+            if os.path.isfile(self.path_aligned_right+fname):
+                print 'Loading aligned right test file {}'.format(fname)
+                with h5py.File(self.path_aligned_right + fname, 'r') as hf:
+                    x = (hf['dt']['images'][()])
+                dt.append(x)
 
         # Shuffle and split
         x = np.random.shuffle(np.asarray(dt))
