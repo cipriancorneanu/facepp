@@ -571,9 +571,12 @@ class ReaderDisfa():
                     x = (hf['dt']['images'][()])
                 dt.append(x)
 
+        dt = np.squeeze(np.concatenate(dt, axis=1))
+        print 'Total number of train samples is {}'.format(dt.shape)
+
         # Shuffle and split
         np.random.shuffle(dt)
-        xs = np.array_split(dt, x.shape[0]/1024)
+        xs = np.array_split(dt, dt.shape[0]/1024)
 
         # Dump
         file = h5py.File(self.path+'/disfa.h5', 'w')
@@ -583,13 +586,13 @@ class ReaderDisfa():
 
         # Load test data
         dt  = []
-        for fname in subjects_train:
+        for fname in subjects_test:
             print 'Loading aligned left test file {}'.format(fname)
             with h5py.File(self.path_aligned_left + fname, 'r') as hf:
                 x = (hf['dt']['images'][()])
             dt.append(x)
 
-        for fname in subjects_train:
+        for fname in subjects_test:
             if os.path.isfile(self.path_aligned_right+fname):
                 print 'Loading aligned right test file {}'.format(fname)
                 with h5py.File(self.path_aligned_right + fname, 'r') as hf:
@@ -597,8 +600,9 @@ class ReaderDisfa():
                 dt.append(x)
 
         # Shuffle and split
-        x = np.random.shuffle(np.asarray(dt))
-        xs = np.array_split(x, x.shape[0]/1024)
+        dt = np.squeeze(np.concatenate(dt, axis=1))
+        np.random.shuffle(dt)
+        xs = np.array_split(dt, dt.shape[0]/1024)
 
         grp = file.create_group('test')
         for i,x in enumerate(xs):
