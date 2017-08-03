@@ -106,13 +106,14 @@ class ReaderFera2017():
         self.aus = [1, 4, 6, 7, 10, 12, 14, 15, 17, 23]
         self.aus_int = ['AU01', 'AU04', 'AU06', 'AU10', 'AU12', 'AU14', 'AU17']
 
-    def read(self, opath, mpath, partition = 'train', poses=[6], cores=4):
+    def read(self, opath, mpath, partition = 'train', poses=[6], cores=4, start=0, stop=1c):
         if partition == 'train':
             root = 'FERA17_TR_'
         elif partition == 'validation':
             root = 'FERA17_VA_'
 
         subjects = self._get_subjects()
+        subjects = [subjects[i] for i in range(start, stop)]
         print 'List of selected subjects: {}'.format(subjects)
 
         # Load models
@@ -141,7 +142,7 @@ class ReaderFera2017():
                         int = self._read_au_intensities(root, subject, task)
 
                         print '     Extract faces and resize '
-                        faces = Parallel(n_jobs=cores)(delayed(extract_face)(i,im) for i,im in enumerate(ims))
+                        faces = Parallel(n_jobs=cores)(delayed(extract_face)(i,im,ext=1.5,sz=224,verbose=True) for i,im in enumerate(ims))
 
                         print '     Align faces'
                         aligned = [align(i, face, model3D, eyemask, predictor, do_frontalize=False, verbose=True) if face_detected
