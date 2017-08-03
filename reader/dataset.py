@@ -144,9 +144,9 @@ class ReaderFera2017():
                         faces = Parallel(n_jobs=cores)(delayed(extract_face)(i,im) for i,im in enumerate(ims))
 
                         print '     Align faces'
-                        aligned = [align(i, face, model3D, eyemask, predictor) if face_detected
-                                   else (np.zeros((face.shape[0], face.shape[1], 3)), np.zeros((68,2)))
-                                   for i,(face_detected,face) in enumerate(faces)]
+                        aligned = [align(i, face, model3D, eyemask, predictor, do_frontalize=False, verbose=True) if face_detected
+                            else (np.zeros((face.shape[0], face.shape[1], 3)), np.zeros((68,2)))
+                            for i,(face_detected,face) in enumerate(faces)]
 
                         afaces, ageoms = (np.asarray([x[0] for x in aligned], dtype=np.uint8),
                                           np.asarray([x[1] for x in aligned], dtype=np.float16))
@@ -565,15 +565,15 @@ class ReaderDisfa():
             dt.append(x)
 
         for fname in subjects_train:
-            print 'Loading aligned right train file {}'.format(fname)
             if os.path.isfile(self.path_aligned_right+fname):
+                print 'Loading aligned right train file {}'.format(fname)
                 with h5py.File(self.path_aligned_right + fname, 'r') as hf:
                     x = (hf['dt']['images'][()])
                 dt.append(x)
 
         # Shuffle and split
-        x = np.random.shuffle(x)
-        xs = np.array_split(x, x.shape[0]/1024)
+        np.random.shuffle(dt)
+        xs = np.array_split(dt, x.shape[0]/1024)
 
         # Dump
         file = h5py.File(self.path+'/disfa.h5', 'w')
