@@ -241,7 +241,7 @@ class ReaderFera2017():
 
         return dt
 
-    def prepare_fera17(self, pose=6):
+    def prepare(self, pose=6):
         files_fera17 = sorted([f for f in os.listdir(self.path + 'fera17/aligned/pose'+str(pose)+'/')])
 
         # Load train data from aligned
@@ -272,8 +272,14 @@ class ReaderFera2017():
         file = h5py.File(self.path+'/fera17.h5', 'w')
         grp = file.create_group('train')
         for i,x in enumerate(splits):
-            grp.create_dataset('segment_'+str(i), data={'ims':ims[x], 'lms':lms[x], 'aus':aus[x], 'int':int[x],
-                                                        'subjects':subjects[x], 'poses':poses[x], 'tasks':tasks[x]})
+            segment = grp.create_group('segment_'+str(i))
+            segment.create_dataset('ims', ims[x])
+            segment.create_dataset('lms', lms[x])
+            segment.create_dataset('aus', aus[x])
+            segment.create_dataset('int', int[x])
+            segment.create_dataset('subjects', subjects[x])
+            segment.create_dataset('poses', poses[x])
+            segment.create_dataset('tasks', tasks[x])
 
 
     def _accumulate_data(self, dt, ims, geoms, occ, int, subjects, tasks, poses):
@@ -588,13 +594,13 @@ class ReaderDisfa():
 
     def prepare(self, subjects_idxs, mode='train'):
         '''Read disfa aligned data and split in train and validation'''
-        subjects = sorted([f for f in os.listdir(self.path_aligned_left)])
-        subjects = [subjects[i] for i in subjects_idxs]
-        print 'List of ' + mode + 'subjects: {}'.format(subjects)
+        files = sorted([f for f in os.listdir(self.path_aligned_left)])
+        files = [files[i] for i in subjects_idxs]
+        print 'List of ' + mode + ' files: {}'.format(files)
 
         # Load train data from aligned left
         ims, lms, aus, subjects, poses = ([], [], [], [], [])
-        for fname in subjects[:3]:
+        for fname in files:
             print 'Loading aligned left train file {}'.format(fname)
             with h5py.File(self.path_aligned_left + fname, 'r') as hf:
                 ims.append(hf['dt']['images'][()])
@@ -625,9 +631,12 @@ class ReaderDisfa():
         file = h5py.File(self.path+'/disfa.h5', 'w')
         grp = file.create_group(mode)
         for i,x in enumerate(splits):
-            grp.create_dataset('segment_'+str(i), data={'ims':ims[x], 'lms':lms[x], 'aus':aus[x],
-                                                        'subjects':subjects[x], 'poses':poses[x]})
-
+            segment = grp.create_group('segment_'+str(i))
+            segment.create_dataset('ims', ims[x])
+            segment.create_dataset('lms', lms[x])
+            segment.create_dataset('aus', aus[x])
+            segment.create_dataset('subjects', subjects[x])
+            segment.create_dataset('poses', poses[x])
 
     def _vectorize_au_sequence(self, au_seq):
         return np.asarray(np.transpose(np.vstack([ [int(x[0].split(',')[1]) for x in au] for au in au_seq])),
