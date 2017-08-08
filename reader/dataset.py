@@ -95,7 +95,6 @@ class ReaderOuluCasia():
         map = {'Anger':0, 'Disgust':1, 'Fear':2, 'Happiness':3, 'Sadness':4, 'Surprise':5}
         return int(map[emo])
 
-
 class ReaderFera2017():
     def __init__(self, path):
         self.path = path
@@ -106,7 +105,7 @@ class ReaderFera2017():
         self.aus = [1, 4, 6, 7, 10, 12, 14, 15, 17, 23]
         self.aus_int = ['AU01', 'AU04', 'AU06', 'AU10', 'AU12', 'AU14', 'AU17']
 
-    def read(self, opath, mpath, partition = 'train', poses=[6], cores=4, start=0, stop=1c):
+    def read(self, opath, mpath, partition = 'train', poses=[6], cores=4, start=0, stop=1):
         if partition == 'train':
             root = 'FERA17_TR_'
         elif partition == 'validation':
@@ -241,6 +240,41 @@ class ReaderFera2017():
                 print 'This batch is empty'
 
         return dt
+
+    def prepare_fera17(self, pose=6):
+        files_fera17 = sorted([f for f in os.listdir(self.path + 'fera17/aligned/pose'+str(pose)+'/')])
+
+        # Load train data from aligned
+        ims, lms, aus, int, subjects, tasks, poses = ([], [], [], [], [], [], [])
+        for fname in files_fera17:
+            print 'Loading file {}'.format(fname)
+            dt = cPickle.load(open(self.path+fname, 'rb'))
+
+            ims.append(dt['ims'])
+            lms.append(dt['geoms'])
+            aus.append(dt['occ'])
+            int.append(dt['int'])
+            subjects.append(dt['subjects']*dt['ims'].shape[0])
+            poses.append(dt['pose']*dt['ims'].shape[0])
+            tasks.append(dt['tasks']*dt['ims'].shape[0])
+
+        (ims, lms, aus, int, subjects, poses, tasks) = (np.squeeze(np.concatenate(ims, axis=1)), np.squeeze(np.concatenate(lms, axis=1)), \
+                                           np.squeeze(np.concatenate(aus, axis=1)), np.squeeze(np.concatenate(int, axis=1)),
+                                           np.concatenate(subjects), np.concatenate(poses), np.concatenate(tasks))
+
+        print 'Total number of train samples is {}'.format(ims.shape)
+
+        # Shuffle and split
+        idx = np.random.permutation(ims.shape[0])
+        splits = np.array_split(idx, idx.shape[0]/1024)
+
+        # Dump
+        file = h5py.File(self.path+'/fera17.h5', 'w')
+        grp = file.create_group('train')
+        for i,x in enumerate(splits):
+            grp.create_dataset('segment_'+str(i), data={'ims':ims[x], 'lms':lms[x], 'aus':aus[x], 'int':int[x],
+                                                        'subjects':subjects[x], 'poses':poses[x], 'tasks':tasks[x]})
+
 
     def _accumulate_data(self, dt, ims, geoms, occ, int, subjects, tasks, poses):
         dt['ims'].append(ims)
@@ -549,65 +583,51 @@ class ReaderDisfa():
 
         return dt
 
-    def split_train_test(self, train_idxs, test_idxs):
+    def get_subject(self, fname):
+        return fname.split('_')[2].split('.')[0]
+
+    def prepare(self, subjects_idxs, mode='train'):
         '''Read disfa aligned data and split in train and validation'''
         subjects = sorted([f for f in os.listdir(self.path_aligned_left)])
-        subjects_train = [subjects[i] for i in train_idxs]
-        print 'List of train subjects: {}'.format(subjects_train)
-        subjects_test = [subjects[i] for i in test_idxs]
-        print 'List of test subjects: {}'.format(subjects_test)
+        subjects = [subjects[i] for i in subjects_idxs]
+        print 'List of ' + mode + 'subjects: {}'.format(subjects)
 
         # Load train data from aligned left
-        dt  = []
-        for fname in subjects_train:
+        ims, lms, aus, subjects, poses = ([], [], [], [], [])
+        for fname in subjects[:3]:
             print 'Loading aligned left train file {}'.format(fname)
             with h5py.File(self.path_aligned_left + fname, 'r') as hf:
-                x = (hf['dt']['images'][()])
-            dt.append(x)
+                ims.append(hf['dt']['images'][()])
+                lms.append(hf['dt']['landmarks'][()])
+                aus.append(hf['dt']['aus'][()])
+                subjects.append([self.get_subject(fname)]*hf['dt']['images'][()].shape[1])
+                poses.append(['left']*hf['dt']['images'][()].shape[1])
 
-        for fname in subjects_train:
-            if os.path.isfile(self.path_aligned_right+fname):
-                print 'Loading aligned right train file {}'.format(fname)
-                with h5py.File(self.path_aligned_right + fname, 'r') as hf:
-                    x = (hf['dt']['images'][()])
-                dt.append(x)
+            print 'Loading aligned right train file {}'.format(fname)
+            with h5py.File(self.path_aligned_right + fname, 'r') as hf:
+                ims.append(hf['dt']['images'][()])
+                lms.append(hf['dt']['landmarks'][()])
+                aus.append(hf['dt']['aus'][()])
+                subjects.append([self.get_subject(fname)]*hf['dt']['images'][()].shape[1])
+                poses.append(['right']*hf['dt']['images'][()].shape[1])
 
-        dt = np.squeeze(np.concatenate(dt, axis=1))
-        print 'Total number of train samples is {}'.format(dt.shape)
+        (ims, lms, aus, subjects, poses) = (np.squeeze(np.concatenate(ims, axis=1)), np.squeeze(np.concatenate(lms, axis=1)), \
+                                           np.squeeze(np.concatenate(aus, axis=1)), np.concatenate(subjects),
+                                           np.concatenate(poses))
+
+        print 'Total number of ' + mode + ' samples is {}'.format(ims.shape)
 
         # Shuffle and split
-        np.random.shuffle(dt)
-        xs = np.array_split(dt, dt.shape[0]/1024)
+        idx = np.random.permutation(ims.shape[0])
+        splits = np.array_split(idx, idx.shape[0]/1024)
 
         # Dump
         file = h5py.File(self.path+'/disfa.h5', 'w')
-        grp = file.create_group('train')
-        for i,x in enumerate(xs):
-            grp.create_dataset('segment_'+str(i), data=x)
+        grp = file.create_group(mode)
+        for i,x in enumerate(splits):
+            grp.create_dataset('segment_'+str(i), data={'ims':ims[x], 'lms':lms[x], 'aus':aus[x],
+                                                        'subjects':subjects[x], 'poses':poses[x]})
 
-        # Load test data
-        dt  = []
-        for fname in subjects_test:
-            print 'Loading aligned left test file {}'.format(fname)
-            with h5py.File(self.path_aligned_left + fname, 'r') as hf:
-                x = (hf['dt']['images'][()])
-            dt.append(x)
-
-        for fname in subjects_test:
-            if os.path.isfile(self.path_aligned_right+fname):
-                print 'Loading aligned right test file {}'.format(fname)
-                with h5py.File(self.path_aligned_right + fname, 'r') as hf:
-                    x = (hf['dt']['images'][()])
-                dt.append(x)
-
-        # Shuffle and split
-        dt = np.squeeze(np.concatenate(dt, axis=1))
-        np.random.shuffle(dt)
-        xs = np.array_split(dt, dt.shape[0]/1024)
-
-        grp = file.create_group('test')
-        for i,x in enumerate(xs):
-            grp.create_dataset('segment_'+str(i), data=x)
 
     def _vectorize_au_sequence(self, au_seq):
         return np.asarray(np.transpose(np.vstack([ [int(x[0].split(',')[1]) for x in au] for au in au_seq])),
