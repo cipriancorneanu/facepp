@@ -10,13 +10,14 @@ import dlib
 from facepp.frontalizer.frontalize import ThreeD_Model
 from facepp.processor.encoder import encode_parametric
 from facepp.processor import partitioner
-from extractor import extract, extract_face
+from extractor import extract, extract_face, _extend_rect
 from reader import *
 import time
 from joblib import Parallel, delayed
 import random
 import h5py
 import os.path
+import matplotlib.pyplot as plt
 
 class ReaderOuluCasia():
     def __init__(self, path):
@@ -241,11 +242,11 @@ class ReaderFera2017():
 
         return dt
 
-    def prepare(self, pose=6):
-        files_fera17 = sorted([f for f in os.listdir(self.path + 'fera17/aligned/pose'+str(pose)+'/')])
+    def prepare(self, partition, pose, out_fname):
+        files_fera17 = sorted([f for f in os.listdir(self.path+partition+'/aligned/'+pose+'/')])
 
         # Load train data from aligned
-        ims, lms, aus, int, subjects, tasks, poses = ([], [], [], [], [], [], [])
+        ims, lms, aus, ints, subjects, tasks, poses = ([], [], [], [], [], [], [])
         for fname in files_fera17:
             print 'Loading file {}'.format(fname)
             dt = cPickle.load(open(self.path+fname, 'rb'))
@@ -253,27 +254,33 @@ class ReaderFera2017():
             ims.append(dt['ims'])
             lms.append(dt['geoms'])
             aus.append(dt['occ'])
-            int.append(dt['int'])
+            ints.append(dt['int'])
             subjects.append(dt['subjects']*dt['ims'].shape[0])
             poses.append(dt['pose']*dt['ims'].shape[0])
             tasks.append(dt['tasks']*dt['ims'].shape[0])
 
-        (ims, lms, aus, int, subjects, poses, tasks) = (np.squeeze(np.concatenate(ims, axis=1)), np.squeeze(np.concatenate(lms, axis=1)), \
-                                           np.squeeze(np.concatenate(aus, axis=1)), np.squeeze(np.concatenate(int, axis=1)),
+        (ims, lms, aus, ints, subjects, poses, tasks) = (np.squeeze(np.concatenate(ims, axis=1)), np.squeeze(np.concatenate(lms, axis=1)), \
+                                           np.squeeze(np.concatenate(aus, axis=1)), np.squeeze(np.concatenate(ints, axis=1)),
                                            np.concatenate(subjects), np.concatenate(poses), np.concatenate(tasks))
 
-        print 'Total number of train samples is {}'.format(ims.shape)
+        print 'Total number of samples is {}'.format(ims.shape)
 
         # Shuffle and split
         idx = np.random.permutation(ims.shape[0])
-        splits = np.array_split(idx, idx.shape[0]/1024)
+        slice_length = 1024
+        indices = [slice_length*x for x in range(1,int(np.ceil(ims.shape[0]/slice_length+1)))]
+        splits = np.array_split(idx, indices)
 
-        # Dump
-        file = h5py.File(self.path+'/fera17.h5', 'w')
-        grp = file.create_group('train')
+        # Dump data
+        if os.path.isfile(self.path+out_fname):
+            file = h5py.File(self.path+out_fname, 'r+')
+        else:
+            file = h5py.File(self.path+out_fname, 'w')
+
+        grp = file.create_group(partition+'/'+pose+'/')
         for i,x in enumerate(splits):
             segment = grp.create_group('segment_'+str(i))
-            segment.create_dataset('ims', ims[x])
+            segment.create_dataset('faces', ims[x])
             segment.create_dataset('lms', lms[x])
             segment.create_dataset('aus', aus[x])
             segment.create_dataset('int', int[x])
@@ -281,6 +288,19 @@ class ReaderFera2017():
             segment.create_dataset('poses', poses[x])
             segment.create_dataset('tasks', tasks[x])
 
+    def prepare_patches(self, partition, pose, out_fname, verbose=False):
+        print 'Prepare patched faces for database {}'.format(out_fname)
+        with h5py.File(self.path+out_fname, 'r+') as hf:
+            for segment_k,segment_v in hf[partition+'/'+pose+'/'].items():
+                print '{} of dataset {}'.format(segment_k, partition+'/'+pose+'/')
+                faces, lms = segment_v['ims'], segment_v['lms']
+
+                patches = []
+                for i, (face, lm) in enumerate(zip(faces, lms)):
+                    patch = extract_patches(face, lm)
+                    patches.append(patch)
+
+                segment_v.create_dataset('faces_patched', data=np.concatenate(patches))
 
     def _accumulate_data(self, dt, ims, geoms, occ, int, subjects, tasks, poses):
         dt['ims'].append(ims)
@@ -592,51 +612,80 @@ class ReaderDisfa():
     def get_subject(self, fname):
         return fname.split('_')[2].split('.')[0]
 
-    def prepare(self, subjects_idxs, mode='train'):
-        '''Read disfa aligned data and split in train and validation'''
-        files = sorted([f for f in os.listdir(self.path_aligned_left)])
-        files = [files[i] for i in subjects_idxs]
-        print 'List of ' + mode + ' files: {}'.format(files)
+    def prepare(self, partition, pose, out_fname):
+        if partition == 'train': slicing = np.arange(0,24)
+        elif partition == 'test': slicing = np.arange(24,27)
 
-        # Load train data from aligned left
+        if pose == 'pose0': in_path = self.path_aligned_left
+        elif pose == 'pose1': in_path = self.path_aligned_right
+
+        # Get files
+        files = sorted([f for f in os.listdir(in_path)])
+        files = [files[i] for i in slicing]
+        print 'List of files: {}'.format(files)
+
+        # Load data
         ims, lms, aus, subjects, poses = ([], [], [], [], [])
         for fname in files:
-            print 'Loading aligned left train file {}'.format(fname)
-            with h5py.File(self.path_aligned_left + fname, 'r') as hf:
+            print 'Loading file {}'.format(fname)
+            with h5py.File(in_path + fname, 'r') as hf:
                 ims.append(hf['dt']['images'][()])
                 lms.append(hf['dt']['landmarks'][()])
                 aus.append(hf['dt']['aus'][()])
                 subjects.append([self.get_subject(fname)]*hf['dt']['images'][()].shape[1])
                 poses.append(['left']*hf['dt']['images'][()].shape[1])
 
-            print 'Loading aligned right train file {}'.format(fname)
-            with h5py.File(self.path_aligned_right + fname, 'r') as hf:
-                ims.append(hf['dt']['images'][()])
-                lms.append(hf['dt']['landmarks'][()])
-                aus.append(hf['dt']['aus'][()])
-                subjects.append([self.get_subject(fname)]*hf['dt']['images'][()].shape[1])
-                poses.append(['right']*hf['dt']['images'][()].shape[1])
-
         (ims, lms, aus, subjects, poses) = (np.squeeze(np.concatenate(ims, axis=1)), np.squeeze(np.concatenate(lms, axis=1)), \
                                            np.squeeze(np.concatenate(aus, axis=1)), np.concatenate(subjects),
                                            np.concatenate(poses))
 
-        print 'Total number of ' + mode + ' samples is {}'.format(ims.shape)
+        print 'Total number of samples is {}'.format(ims.shape)
 
         # Shuffle and split
         idx = np.random.permutation(ims.shape[0])
-        splits = np.array_split(idx, idx.shape[0]/1024)
+        slice_length = 1024
+        indices = [slice_length*x for x in range(1,int(np.ceil(ims.shape[0]/slice_length+1)))]
+        splits = np.array_split(idx, indices)
 
-        # Dump
-        file = h5py.File(self.path+'/disfa.h5', 'w')
-        grp = file.create_group(mode)
+        # Dump data
+        if os.path.isfile(self.path+out_fname):
+            file = h5py.File(self.path+out_fname, 'r+')
+        else:
+            file = h5py.File(self.path+out_fname, 'w')
+
+        grp = file.create_group(partition+'/'+pose+'/')
         for i,x in enumerate(splits):
             segment = grp.create_group('segment_'+str(i))
-            segment.create_dataset('ims', ims[x])
-            segment.create_dataset('lms', lms[x])
-            segment.create_dataset('aus', aus[x])
-            segment.create_dataset('subjects', subjects[x])
-            segment.create_dataset('poses', poses[x])
+            segment.create_dataset('faces', data=ims[x])
+            segment.create_dataset('lms', data=lms[x])
+            segment.create_dataset('aus', data=aus[x])
+            segment.create_dataset('subjects', data=subjects[x])
+            segment.create_dataset('poses', data=poses[x])
+
+    def prepare_patches(self, partition, pose, out_fname):
+        print 'Prepare patched faces for database {}'.format(out_fname)
+        with h5py.File(self.path+out_fname, 'r+') as hf:
+            for segment_k,segment_v in hf[partition+'/'+pose+'/'].items():
+                print '{} of dataset {}'.format(segment_k, partition+'/'+pose+'/')
+                faces, lms = segment_v['faces'], segment_v['lms']
+
+                patches = []
+                for i, (face, lm) in enumerate(zip(faces, lms)):
+                    patch = extract_patches(face, lm)
+                    patches.append(patch)
+
+                print np.asarray(patches).shape
+                segment_v.create_dataset('faces_patched', data=np.concatenate(patches))
+
+                '''
+                if i%100==0: print i
+                fig,ax = plt.subplots(1)
+                ax.imshow(face)
+                ax.scatter(lm[:,0], lm[:,1], color='g')
+                plt.show()
+                plt.imshow(patches)
+                plt.show()
+                '''
 
     def _vectorize_au_sequence(self, au_seq):
         return np.asarray(np.transpose(np.vstack([ [int(x[0].split(',')[1]) for x in au] for au in au_seq])),
@@ -806,6 +855,32 @@ def patch(patches, positions, shape=(64,64)):
 
     return np.asarray(np.clip(np.sum(output, axis=0), 0, 255), dtype=np.uint8)
 
+
+def extract_patches(face, geom):
+        markers = {
+            'leye': np.concatenate((np.arange(17,22), np.arange(36,42))),
+            'reye': np.concatenate((np.arange(42,48), np.arange(22,27))),
+            'nose': np.arange(27,36),
+            'mouth': np.arange(48,68),
+        }
+
+        patches = np.zeros_like(face)
+        for (_,v) in markers.items():
+            bbox = _extend_rect([int(min(geom[v, 0])), int(min(geom[v, 1])),
+                                 int(max(geom[v, 0])), int(max(geom[v, 1]))], 1.5)
+
+            # Copy content
+            mask = np.zeros_like(face, dtype=np.uint8)
+            for i in range(bbox[0], bbox[2]):
+                for j in range(bbox[1], bbox[3]):
+                        patches[j,i] = face[j,i]
+
+        return patches
+
 if __name__ == '__main__':
-    reader = ReaderFera2017('/Users/cipriancorneanu/Research/data/fera2017/validation/')
-    reader.read_batches(10)
+    '''
+    reader = ReaderDisfa('/Users/cipriancorneanu/Research/data/disfa/')
+    reader.prepare_patches('disfa.h5', dataset='train/pose0/')
+    '''
+    reader = ReaderFera2017('/Users/cipriancorneanu/Research/data/fera2017/')
+    reader.prepare_patches('fera17.h5', dataset='train/pose6/')
