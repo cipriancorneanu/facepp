@@ -243,21 +243,22 @@ class ReaderFera2017():
         return dt
 
     def prepare(self, partition, pose, out_fname):
-        files_fera17 = sorted([f for f in os.listdir(self.path+partition+'/aligned/'+pose+'/')])
+        path = self.path+partition+'/aligned/'+pose+'/'
+        files_fera17 = sorted([f for f in os.listdir(path)])
 
         # Load train data from aligned
         ims, lms, aus, ints, subjects, tasks, poses = ([], [], [], [], [], [], [])
         for fname in files_fera17:
             print 'Loading file {}'.format(fname)
-            dt = cPickle.load(open(self.path+fname, 'rb'))
+            dt = cPickle.load(open(path+fname, 'rb'))
 
             ims.append(dt['ims'])
             lms.append(dt['geoms'])
             aus.append(dt['occ'])
             ints.append(dt['int'])
-            subjects.append(dt['subjects']*dt['ims'].shape[0])
-            poses.append(dt['pose']*dt['ims'].shape[0])
-            tasks.append(dt['tasks']*dt['ims'].shape[0])
+            subjects.append(dt['subjects']*np.concatenate(dt['ims']).shape[0])
+            poses.append(dt['poses']*np.concatenate(dt['ims']).shape[0])
+            tasks.append(dt['tasks']*np.concatenate(dt['ims']).shape[0])
 
         (ims, lms, aus, ints, subjects, poses, tasks) = (np.squeeze(np.concatenate(ims, axis=1)), np.squeeze(np.concatenate(lms, axis=1)), \
                                            np.squeeze(np.concatenate(aus, axis=1)), np.squeeze(np.concatenate(ints, axis=1)),
@@ -280,25 +281,34 @@ class ReaderFera2017():
         grp = file.create_group(partition+'/'+pose+'/')
         for i,x in enumerate(splits):
             segment = grp.create_group('segment_'+str(i))
-            segment.create_dataset('faces', ims[x])
-            segment.create_dataset('lms', lms[x])
-            segment.create_dataset('aus', aus[x])
-            segment.create_dataset('int', int[x])
-            segment.create_dataset('subjects', subjects[x])
-            segment.create_dataset('poses', poses[x])
-            segment.create_dataset('tasks', tasks[x])
+            segment.create_dataset('faces', data=ims[x])
+            segment.create_dataset('lms', data=lms[x])
+            segment.create_dataset('aus', data=aus[x])
+            '''segment.create_dataset('ints', data=ints[x]) There is a problem woth intensities. Don't have same dim as others'''
+            segment.create_dataset('subjects', data=subjects[x])
+            segment.create_dataset('poses', data=poses[x])
+            segment.create_dataset('tasks', data=tasks[x])
 
     def prepare_patches(self, partition, pose, out_fname, verbose=False):
         print 'Prepare patched faces for database {}'.format(out_fname)
         with h5py.File(self.path+out_fname, 'r+') as hf:
             for segment_k,segment_v in hf[partition+'/'+pose+'/'].items():
                 print '{} of dataset {}'.format(segment_k, partition+'/'+pose+'/')
-                faces, lms = segment_v['ims'], segment_v['lms']
+                faces, lms = segment_v['faces'], segment_v['lms']
 
                 patches = []
                 for i, (face, lm) in enumerate(zip(faces, lms)):
                     patch = extract_patches(face, lm)
                     patches.append(patch)
+
+                    if i%100==0: print i
+                    fig,ax = plt.subplots(1)
+                    ax.imshow(face)
+                    ax.scatter(lm[:,0], lm[:,1], color='g')
+                    plt.show()
+                    plt.imshow(patch)
+                    plt.show()
+
 
                 segment_v.create_dataset('faces_patched', data=np.concatenate(patches))
 
@@ -565,7 +575,7 @@ class ReaderDisfa():
         eyemask = np.asarray(io.loadmat(mpath + 'frontalization_models/eyemask.mat')['eyemask'])
 
         print('###### READING DISFA DATASET ######')
-
+        # TODO: Check SN004, SN005 that lack on au and the 5 that fail (7 in total)
         for subject in subjects:
             print('Reading subject ' + subject)
 
@@ -613,15 +623,15 @@ class ReaderDisfa():
         return fname.split('_')[2].split('.')[0]
 
     def prepare(self, partition, pose, out_fname):
-        if partition == 'train': slicing = np.arange(0,24)
-        elif partition == 'test': slicing = np.arange(24,27)
-
         if pose == 'pose0': in_path = self.path_aligned_left
         elif pose == 'pose1': in_path = self.path_aligned_right
 
         # Get files
-        files = sorted([f for f in os.listdir(in_path)])
-        files = [files[i] for i in slicing]
+        test_files = ['disfa_subject_SN030.h5', 'disfa_subject_SN031.h5', 'disfa_subject_SN032.h5']
+        if partition == 'train':
+            files = list(set(sorted([f for f in os.listdir(in_path)])) - set(test_files))
+        elif partition == 'test':
+            files = test_files
         print 'List of files: {}'.format(files)
 
         # Load data
@@ -658,7 +668,7 @@ class ReaderDisfa():
             segment = grp.create_group('segment_'+str(i))
             segment.create_dataset('faces', data=ims[x])
             segment.create_dataset('lms', data=lms[x])
-            segment.create_dataset('aus', data=aus[x])
+            #segment.create_dataset('aus', data=aus[x]) # 2 AUS are missing from SN004 and SN005
             segment.create_dataset('subjects', data=subjects[x])
             segment.create_dataset('poses', data=poses[x])
 
@@ -883,4 +893,4 @@ if __name__ == '__main__':
     reader.prepare_patches('disfa.h5', dataset='train/pose0/')
     '''
     reader = ReaderFera2017('/Users/cipriancorneanu/Research/data/fera2017/')
-    reader.prepare_patches('fera17.h5', dataset='train/pose6/')
+    reader.prepare_patches('train', 'pose6', 'fera17.h5')
