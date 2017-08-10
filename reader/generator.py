@@ -171,8 +171,10 @@ class GeneratorFera2017():
         with h5py.File(self.path+'fera17.h5', 'r') as hf:
             for k,v in hf['train/'+pose].items():
                 n_train += v['faces'].shape[0]
+	    '''
             for k,v in hf['test/'+pose].items():
                 n_test += v['faces'].shape[0]
+	    '''
         return n_train, n_test
 
     def n_samples_train(self):
@@ -242,8 +244,8 @@ class GeneratorFaces():
 
     def generate_train(self, mini_batch_size=32):
         databases = [
-            {'fname':'disfa.h5', 'datasets':['train/pose0', 'train/pose1']},
-            {'fname':'fera17.h5', 'datasets':['train/pose5', 'train/pose6']}
+            {'fname':'disfa/disfa.h5', 'datasets':['train/pose0', 'train/pose1']},
+            {'fname':'fera/fera17.h5', 'datasets':['train/pose5', 'train/pose6']}
         ]
 
         while True:
@@ -252,18 +254,24 @@ class GeneratorFaces():
                 with h5py.File(self.path+db['fname'], 'r') as hf:
                     np.random.shuffle(db['datasets'])
                     for ds in db['datasets']:
-
                         for k,v in hf[ds].items():
-                            for i in range(1, v.shape[0]/mini_batch_size):
+			    faces_patched = np.reshape(v['faces_patched'], (-1, 224, 224, 3))
+			    print '{}, {}, ItemKey: {}, FShape: {}, FPShaped: {}'.format(db['fname'], ds, k, v['faces'].shape, faces_patched.shape)
+                            for i in range(1, v['faces'].shape[0]/mini_batch_size):
                                 yield (v['faces'][(i-1)*mini_batch_size:i*mini_batch_size],
                                        v['faces'][(i-1)*mini_batch_size:i*mini_batch_size])
-                                yield (v['faces_patched'][(i-1)*mini_batch_size:i*mini_batch_size],
-                                       v['faces_patched'][(i-1)*mini_batch_size:i*mini_batch_size])
+                                yield (faces_patched[(i-1)*mini_batch_size:i*mini_batch_size],
+                                       faces_patched[(i-1)*mini_batch_size:i*mini_batch_size])
                 gc.collect()
 
-    def generate_test(self, mini_batch_size):
-        disfa = GeneratorDisfa(self.path + 'disfa/')
-        disfa.generate_test(mini_batch_size)
+    def generate_test(self, mini_batch_size=32):
+        while True:
+            with h5py.File(self.path+'disfa/disfa.h5', 'r') as hf:
+                for k,v in hf['test/pose0'].items():
+                    for i in range(1, v['faces'].shape[0]/mini_batch_size):
+                        yield (v['faces'][(i-1)*mini_batch_size:i*mini_batch_size],
+                               v['faces'][(i-1)*mini_batch_size:i*mini_batch_size])
+            gc.collect()
 
     def n_samples_train(self):
         disfa = GeneratorDisfa(self.path + 'disfa/')
@@ -401,4 +409,8 @@ if __name__ == '__main__':
     path_local = '/Users/cipriancorneanu/Research/data/disfa/'
     dtg = GeneratorFaces(path_server)
 
-    dtg.generate_train()
+    print dtg.n_samples_train()
+    print dtg.n_samples_test()
+
+    for i, batch in enumerate(dtg.generate_train()):
+        print i
