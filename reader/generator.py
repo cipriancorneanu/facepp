@@ -171,10 +171,10 @@ class GeneratorFera2017():
         with h5py.File(self.path+'fera17.h5', 'r') as hf:
             for k,v in hf['train/'+pose].items():
                 n_train += v['faces'].shape[0]
-	    '''
-            for k,v in hf['test/'+pose].items():
-                n_test += v['faces'].shape[0]
-	    '''
+                '''
+                    for k,v in hf['test/'+pose].items():
+                        n_test += v['faces'].shape[0]
+                '''
         return n_train, n_test
 
     def n_samples_train(self):
@@ -242,29 +242,46 @@ class GeneratorFaces():
     def __init__(self, path):
         self.path = path
 
-    def generate_train(self, mini_batch_size=32):
+    def get_segments(self):
         databases = [
             {'fname':'disfa/disfa.h5', 'datasets':['train/pose0', 'train/pose1']},
             {'fname':'fera/fera17.h5', 'datasets':['train/pose5', 'train/pose6']}
         ]
 
-        while True:
-            np.random.shuffle(databases)
-            for db in databases:
-                with h5py.File(self.path+db['fname'], 'r') as hf:
-                    np.random.shuffle(db['datasets'])
-                    for ds in db['datasets']:
-                        for k,v in hf[ds].items():
-			    faces_patched = np.reshape(v['faces_patched'], (-1, 224, 224, 3))
-			    print '{}, {}, ItemKey: {}, FShape: {}, FPShaped: {}'.format(db['fname'], ds, k, v['faces'].shape, faces_patched.shape)
-                            for i in range(1, v['faces'].shape[0]/mini_batch_size):
-                                yield (v['faces'][(i-1)*mini_batch_size:i*mini_batch_size],
-                                       v['faces'][(i-1)*mini_batch_size:i*mini_batch_size])
-                                yield (faces_patched[(i-1)*mini_batch_size:i*mini_batch_size],
-                                       faces_patched[(i-1)*mini_batch_size:i*mini_batch_size])
-                gc.collect()
+        segments = []
+        for db in databases:
+            with h5py.File(self.path+db['fname'], 'r') as hf:
+                for ds in db['datasets']:
+                    for k,v in hf[ds].items():
+                        s = {'db':db['fname'], 'ds':ds, 'segm': k, 'patch':True}
+                        sp = {'db':db['fname'], 'ds':ds, 'segm': k, 'patch': False}
+                        segments.append(s)
+                        segments.append(sp)
+        return segments
 
-    def generate_test(self, mini_batch_size=32):
+    def get_value(self, segment, mini_batch_size):
+        with h5py.File(self.path+segment['db'], 'r') as hf:
+            v = hf[segment['ds']+'/'+segment['segm']]
+            if segment['patch']:
+                faces_patched = np.reshape(v['faces_patched'], (-1, 224, 224, 3))
+                for i in range(1, v['faces'].shape[0]/mini_batch_size):
+                    return (faces_patched[(i-1)*mini_batch_size:i*mini_batch_size],
+                                   faces_patched[(i-1)*mini_batch_size:i*mini_batch_size])
+            else:
+                for i in range(1, v['faces'].shape[0]/mini_batch_size):
+                    return (v['faces'][(i-1)*mini_batch_size:i*mini_batch_size],
+                                   v['faces'][(i-1)*mini_batch_size:i*mini_batch_size])
+
+    def generate_train(self, mini_batch_size=32):
+        segments = self.get_segments()
+        np.random.shuffle(segments)
+
+        while True:
+            for s in segments:
+                print s
+                yield self.get_value(s, mini_batch_size)
+
+    def generate_validation(self, mini_batch_size=32):
         while True:
             with h5py.File(self.path+'disfa/disfa.h5', 'r') as hf:
                 for k,v in hf['test/pose0'].items():
@@ -272,6 +289,10 @@ class GeneratorFaces():
                         yield (v['faces'][(i-1)*mini_batch_size:i*mini_batch_size],
                                v['faces'][(i-1)*mini_batch_size:i*mini_batch_size])
             gc.collect()
+
+    def generate_test(self, mini_batch_size=32):
+        #TODO : get batches from femo
+        pass
 
     def n_samples_train(self):
         disfa = GeneratorDisfa(self.path + 'disfa/')
