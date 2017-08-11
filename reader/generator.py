@@ -259,27 +259,30 @@ class GeneratorFaces():
                         segments.append(sp)
         return segments
 
-    def get_value(self, segment, mini_batch_size):
+    def get_batches(self, segment, mini_batch_size):
+        batches = []
         with h5py.File(self.path+segment['db'], 'r') as hf:
             v = hf[segment['ds']+'/'+segment['segm']]
             if segment['patch']:
                 faces_patched = np.reshape(v['faces_patched'], (-1, 224, 224, 3))
                 for i in range(1, v['faces'].shape[0]/mini_batch_size):
-                    return (faces_patched[(i-1)*mini_batch_size:i*mini_batch_size],
-                                   faces_patched[(i-1)*mini_batch_size:i*mini_batch_size])
+                    batches.append((faces_patched[(i-1)*mini_batch_size:i*mini_batch_size],
+                                    faces_patched[(i-1)*mini_batch_size:i*mini_batch_size]))
             else:
                 for i in range(1, v['faces'].shape[0]/mini_batch_size):
-                    return (v['faces'][(i-1)*mini_batch_size:i*mini_batch_size],
-                                   v['faces'][(i-1)*mini_batch_size:i*mini_batch_size])
+                    batches.append((v['faces'][(i-1)*mini_batch_size:i*mini_batch_size],
+                                    v['faces'][(i-1)*mini_batch_size:i*mini_batch_size]))
+        return batches
 
-    def generate_train(self, mini_batch_size=32):
+    def generate_train(self, batch_size=32):
         segments = self.get_segments()
         np.random.shuffle(segments)
 
         while True:
             for s in segments:
-                print s
-                yield self.get_value(s, mini_batch_size)
+		print s
+                for b in self.get_batches(s, batch_size):
+                    yield b
 
     def generate_validation(self, mini_batch_size=32):
         while True:
