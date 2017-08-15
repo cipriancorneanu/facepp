@@ -65,6 +65,27 @@ def _pad(im, size):
         padded[0:im.shape[0], 0:im.shape[1]] = im
         return padded
 
+def square_bbox(shape):
+    #print 'Shape: {}'.format(shape)
+    # Compute rectangular bbox around shape
+    bbox = [int(min(shape[:, 0])), int(min(shape[:, 1])),
+                     int(max(shape[:, 0])), int(max(shape[:, 1]))]
+    #print 'Bbox:{}, r:{}'.format(bbox, float(bbox[2]-bbox[0])/(bbox[3]-bbox[1]))
+    r = float(bbox[2]-bbox[0])/(bbox[3]-bbox[1])
+
+    #print 'r={}'.format(r)
+    if r<1:
+        update = [-(1-r)*(bbox[2]-bbox[0])/2, 0, (1-r)*(bbox[2]-bbox[0])/2, 0]
+    else:
+        update = [0, -(r-1)*(bbox[3]-bbox[1])/2, 0, (r-1)*(bbox[3]-bbox[1])/2]
+
+    sbbox = np.asarray(bbox, dtype=np.int16)+np.asarray(update, dtype=np.int16)
+    #print 'Sbbox:{}, r:{}'.format(sbbox, float(sbbox[2]-sbbox[0])/(sbbox[3]-sbbox[1]))
+    #print 'Sbbox2:{}'.format(np.vstack([[sbbox[1], sbbox[0]], [sbbox[3], sbbox[0]], [sbbox[1], sbbox[2]], [sbbox[3], sbbox[2]]]))
+    #return np.vstack([[sbbox[2], sbbox[0]], [sbbox[1], sbbox[0]], [sbbox[3], sbbox[1]], [sbbox[3], sbbox[2]]])
+    return np.vstack([[sbbox[1], sbbox[0]], [sbbox[3], sbbox[0]], [sbbox[1], sbbox[2]], [sbbox[3], sbbox[2]]])
+
+
 def extract_face(i, im, ext=1.1, sz=224, verbose=False):
     # Extract face from image
     face_detector = dlib.get_frontal_face_detector()

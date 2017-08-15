@@ -10,7 +10,7 @@ import dlib
 from facepp.frontalizer.frontalize import ThreeD_Model
 from facepp.processor.encoder import encode_parametric
 from facepp.processor import partitioner
-from extractor import extract, extract_face, _extend_rect
+from extractor import extract, extract_face, _extend_rect, square_bbox
 from reader import *
 import time
 from joblib import Parallel, delayed
@@ -289,7 +289,7 @@ class ReaderFera2017():
             segment.create_dataset('poses', data=poses[x])
             segment.create_dataset('tasks', data=tasks[x])
 
-    def prepare_patches(self, partition, pose, out_fname, verbose=False):
+    def prepare_patched_faces(self, partition, pose, out_fname, verbose=False):
         print 'Prepare patched faces for database {}'.format(out_fname)
         with h5py.File(self.path+out_fname, 'r+') as hf:
             for segment_k,segment_v in hf[partition+'/'+pose+'/'].items():
@@ -309,8 +309,31 @@ class ReaderFera2017():
                     plt.imshow(patch)
                     plt.show()
 
-
                 segment_v.create_dataset('faces_patched', data=np.concatenate(patches))
+
+    def prepare_patches(self, partition, pose, out_fname):
+        markers = {
+            'leye': np.concatenate((np.arange(17,22), np.arange(36,42))),
+            'reye': np.concatenate((np.arange(42,48), np.arange(22,27))),
+            'nose': np.arange(27,36),
+            'mouth': np.arange(48,68),
+            }
+
+        print 'Prepare patches for database {}'.format(out_fname)
+        with h5py.File(self.path+out_fname, 'r+') as hf:
+            for segment_k,segment_v in hf[partition+'/'+pose+'/'].items():
+                print '{} of dataset {}'.format(segment_k, partition+'/'+pose+'/')
+                faces, lms = segment_v['faces'], segment_v['lms']
+
+                patches = {'leye':[], 'reye':[], 'nose':[], 'mouth':[]}
+                for i, (face, lm) in enumerate(zip(faces, lms)):
+                    # Extract patches
+                    for k,v in markers.items():
+                        patch = extract(face, square_bbox(lm[v]), extension=1.3, size=56)[0]
+                        patches[k].append(patch)
+
+                for k,v in markers.items():
+                    segment_v.create_dataset(k, data=np.asarray(patches[k]))
 
     def _accumulate_data(self, dt, ims, geoms, occ, int, subjects, tasks, poses):
         dt['ims'].append(ims)
@@ -672,7 +695,8 @@ class ReaderDisfa():
             segment.create_dataset('subjects', data=subjects[x])
             segment.create_dataset('poses', data=poses[x])
 
-    def prepare_patches(self, partition, pose, out_fname):
+    def prepare_patched_face(self, partition, pose, out_fname):
+        # From face creates masked version containing fiducial patches
         print 'Prepare patched faces for database {}'.format(out_fname)
         with h5py.File(self.path+out_fname, 'r+') as hf:
             for segment_k,segment_v in hf[partition+'/'+pose+'/'].items():
@@ -696,6 +720,30 @@ class ReaderDisfa():
                 plt.imshow(patches)
                 plt.show()
                 '''
+
+    def prepare_patches(self, partition, pose, out_fname):
+        markers = {
+            'leye': np.concatenate((np.arange(17,22), np.arange(36,42))),
+            'reye': np.concatenate((np.arange(42,48), np.arange(22,27))),
+            'nose': np.arange(27,36),
+            'mouth': np.arange(48,68),
+            }
+
+        print 'Prepare patches for database {}'.format(out_fname)
+        with h5py.File(self.path+out_fname, 'r+') as hf:
+            for segment_k,segment_v in hf[partition+'/'+pose+'/'].items():
+                print '{} of dataset {}'.format(segment_k, partition+'/'+pose+'/')
+                faces, lms = segment_v['faces'], segment_v['lms']
+
+                patches = {'leye':[], 'reye':[], 'nose':[], 'mouth':[]}
+                for i, (face, lm) in enumerate(zip(faces, lms)):
+                    # Extract patches
+                    for k,v in markers.items():
+                        patch = extract(face, square_bbox(lm[v]), extension=1.3, size=56)[0]
+                        patches[k].append(patch)
+
+                for k,v in markers.items():
+                    segment_v.create_dataset(k, data=np.asarray(patches[k]))
 
     def _vectorize_au_sequence(self, au_seq):
         return np.asarray(np.transpose(np.vstack([ [int(x[0].split(',')[1]) for x in au] for au in au_seq])),
@@ -888,9 +936,5 @@ def extract_patches(face, geom):
         return patches
 
 if __name__ == '__main__':
-    '''
     reader = ReaderDisfa('/Users/cipriancorneanu/Research/data/disfa/')
-    reader.prepare_patches('disfa.h5', dataset='train/pose0/')
-    '''
-    reader = ReaderFera2017('/Users/cipriancorneanu/Research/data/fera2017/')
-    reader.prepare_patches('train', 'pose6', 'fera17.h5')
+    reader.prepare_patches(partition='train', pose='pose0', out_fname='disfa_sample.h5')
