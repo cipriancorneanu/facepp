@@ -300,7 +300,7 @@ class ReaderFera2017():
                 for i, (face, lm) in enumerate(zip(faces, lms)):
                     patch = extract_patches(face, lm)
                     patches.append(patch)
-
+                    '''
                     if i%100==0: print i
                     fig,ax = plt.subplots(1)
                     ax.imshow(face)
@@ -308,7 +308,7 @@ class ReaderFera2017():
                     plt.show()
                     plt.imshow(patch)
                     plt.show()
-
+                    '''
                 segment_v.create_dataset('faces_patched', data=np.concatenate(patches))
 
     def prepare_patches(self, partition, pose, out_fname):
@@ -329,7 +329,10 @@ class ReaderFera2017():
                 for i, (face, lm) in enumerate(zip(faces, lms)):
                     # Extract patches
                     for k,v in markers.items():
-                        patch = extract(face, square_bbox(lm[v]), extension=1.3, size=56)[0]
+                        if np.sum(lm)==0:
+                            patch = np.zeros((56, 56, 3))
+                        else:
+                            patch = extract(face, square_bbox(lm[v]), extension=1.3, size=56)[0]
                         patches[k].append(patch)
 
                 for k,v in markers.items():
@@ -739,7 +742,10 @@ class ReaderDisfa():
                 for i, (face, lm) in enumerate(zip(faces, lms)):
                     # Extract patches
                     for k,v in markers.items():
-                        patch = extract(face, square_bbox(lm[v]), extension=1.3, size=56)[0]
+                        if np.sum(lm)==0:
+                            patch = np.zeros((56, 56, 3))
+                        else:
+                            patch = extract(face, square_bbox(lm[v]), extension=1.3, size=56)[0]
                         patches[k].append(patch)
 
                 for k,v in markers.items():
