@@ -735,21 +735,22 @@ class ReaderDisfa():
         print 'Prepare patches for database {}'.format(out_fname)
         with h5py.File(self.path+out_fname, 'r+') as hf:
             for segment_k,segment_v in hf[partition+'/'+pose+'/'].items():
-                print '{} of dataset {}'.format(segment_k, partition+'/'+pose+'/')
-                faces, lms = segment_v['faces'], segment_v['lms']
+                if 'leye' not in segment_v:
+                    print '{} of dataset {}'.format(segment_k, partition+'/'+pose+'/')
+                    faces, lms = segment_v['faces'], segment_v['lms']
 
-                patches = {'leye':[], 'reye':[], 'nose':[], 'mouth':[]}
-                for i, (face, lm) in enumerate(zip(faces, lms)):
-                    # Extract patches
+                    patches = {'leye':[], 'reye':[], 'nose':[], 'mouth':[]}
+                    for i, (face, lm) in enumerate(zip(faces, lms)):
+                        # Extract patches
+                        for k,v in markers.items():
+                            if np.sum(lm)==0:
+                                patch = np.zeros((56, 56, 3))
+                            else:
+                                patch = extract(face, square_bbox(lm[v]), extension=1.3, size=56)[0]
+                            patches[k].append(patch)
+
                     for k,v in markers.items():
-                        if np.sum(lm)==0:
-                            patch = np.zeros((56, 56, 3))
-                        else:
-                            patch = extract(face, square_bbox(lm[v]), extension=1.3, size=56)[0]
-                        patches[k].append(patch)
-
-                for k,v in markers.items():
-                    segment_v.create_dataset(k, data=np.asarray(patches[k]))
+                        segment_v.create_dataset(k, data=np.asarray(patches[k]))
 
     def _vectorize_au_sequence(self, au_seq):
         return np.asarray(np.transpose(np.vstack([ [int(x[0].split(',')[1]) for x in au] for au in au_seq])),
