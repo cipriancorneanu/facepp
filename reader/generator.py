@@ -13,7 +13,7 @@ class GeneratorFera2017():
 
     def get_segments(self):
         databases = [
-            {'fname':'disfa/disfa.h5', 'datasets':['train/pose0', 'train/pose1']},
+            {'fname':'fera/fera17.h5', 'datasets':['train/pose5', 'train/pose6']},
         ]
 
         data_types = ['face']
@@ -32,10 +32,11 @@ class GeneratorFera2017():
 
     def get_batches(self, segment, mini_batch_size):
         batches = []
+        print self.path+segment['db']
         with h5py.File(self.path+segment['db'], 'r') as hf:
             v = hf[segment['ds']+'/'+segment['segm']]
             for i in range(1, v['faces'].shape[0]/mini_batch_size):
-                batches.append((v['faces'][(i-1)*mini_batch_size:i*mini_batch_size], v['aus']))
+                batches.append((v['faces'][(i-1)*mini_batch_size:i*mini_batch_size], v['aus'][(i-1)*mini_batch_size:i*mini_batch_size]))
         return batches
 
     def generate_train(self, batch_size):
@@ -50,7 +51,7 @@ class GeneratorFera2017():
 
     def n_samples_pose(self, pose='pose0'):
         n_train, n_test = (0,0)
-        with h5py.File(self.path+'fera17.h5', 'r') as hf:
+        with h5py.File(self.path+'fera/fera17.h5', 'r') as hf:
             for k,v in hf['train/'+pose].items():
                 n_train += v['faces'].shape[0]
             '''
@@ -100,12 +101,10 @@ class GeneratorFaces():
             if segment['patch']:
                 faces_patched = np.reshape(v['faces_patched'], (-1, 224, 224, 3))
                 for i in range(1, v['faces'].shape[0]/mini_batch_size):
-                    batches.append((faces_patched[(i-1)*mini_batch_size:i*mini_batch_size],
-                                    faces_patched[(i-1)*mini_batch_size:i*mini_batch_size]))
+                    batches.append(faces_patched[(i-1)*mini_batch_size:i*mini_batch_size])
             else:
                 for i in range(1, v['faces'].shape[0]/mini_batch_size):
-                    batches.append((v['faces'][(i-1)*mini_batch_size:i*mini_batch_size],
-                                    v['faces'][(i-1)*mini_batch_size:i*mini_batch_size]))
+                    batches.append(v['faces'][(i-1)*mini_batch_size:i*mini_batch_size])
         return batches
 
     def generate_train(self, batch_size=32):
@@ -123,8 +122,7 @@ class GeneratorFaces():
             with h5py.File(self.path+'disfa/disfa.h5', 'r') as hf:
                 for k,v in hf['test/pose0'].items():
                     for i in range(1, v['faces'].shape[0]/mini_batch_size):
-                        yield (v['faces'][(i-1)*mini_batch_size:i*mini_batch_size],
-                               v['faces'][(i-1)*mini_batch_size:i*mini_batch_size])
+                        yield (v['faces'][(i-1)*mini_batch_size:i*mini_batch_size])
             gc.collect()
 
     def generate_test(self, mini_batch_size=32):
@@ -151,7 +149,7 @@ class GeneratorFacesAndPatches():
             {'fname':'fera/fera17.h5', 'datasets':['train/pose5', 'train/pose6']}
         ]
 
-        data_types = ['face', 'face_patched', 'leye', 'reye', 'mouth', 'nose']
+        data_types = ['faces', 'faces_patched', 'leye', 'reye', 'mouth', 'nose']
 
         segments = []
         for db in databases:
@@ -170,7 +168,7 @@ class GeneratorFacesAndPatches():
             v = hf[segment['ds']+'/'+segment['segm']]
             faces_patched = np.reshape(v['faces_patched'], (-1, 224, 224, 3))
             if segment['type']=='faces_patched':
-                for i in range(1, v[segment['type']].shape[0]/mini_batch_size):
+                for i in range(1, faces_patched.shape[0]/mini_batch_size):
                     batches.append((faces_patched[(i-1)*mini_batch_size:i*mini_batch_size],
                                     faces_patched[(i-1)*mini_batch_size:i*mini_batch_size]))
             else:
@@ -338,22 +336,12 @@ class GeneratorMLMNIST():
 
 if __name__ == '__main__':
     path_server = '/data/data1/corneanu/'
-    path_local = '/Users/cipriancorneanu/Research/data/disfa/'
-    dtg = GeneratorFacesAndPatches(path_server)
-
-    print '---------FacesAndPatches---------'
-
-    print dtg.n_samples_train()
-    print dtg.n_samples_test()
-
-    for i, batch in enumerate(dtg.generate_train()):
-        print i
 
     print '---------Fera2017---------'
-    dtg_fera = GeneratorFera2017(path_server)
+    dtg = GeneratorFera2017(path_server)
 
     print dtg.n_samples_train()
     print dtg.n_samples_test()
 
-    for i, batch in enumerate(dtg.generate_train()):
-        print i
+    for i,(batch, aus) in enumerate(dtg.generate_train(32)):
+        print '{}, {}, {}'.format(i, batch.shape, aus.shape)
