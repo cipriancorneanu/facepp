@@ -11,9 +11,9 @@ class GeneratorFera2017():
     def __init__(self, path):
         self.path = path
 
-    def get_segments(self):
+    def get_segments(self, partition):
         databases = [
-            {'fname':'fera/fera17.h5', 'datasets':['train/pose5', 'train/pose6']},
+            {'fname':'fera/fera17.h5', 'datasets':[partition+'/pose5', partition+'/pose6']},
         ]
 
         data_types = ['face']
@@ -40,7 +40,17 @@ class GeneratorFera2017():
         return batches
 
     def generate_train(self, batch_size):
-        segments = self.get_segments()
+        segments = self.get_segments('train')
+        np.random.shuffle(segments)
+
+        while True:
+            for s in segments:
+                print s
+                for b in self.get_batches(s, batch_size):
+                    yield b
+
+    def generate_test(self, batch_size):
+        segments = self.get_segments('test')
         np.random.shuffle(segments)
 
         while True:
