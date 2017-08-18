@@ -6,6 +6,7 @@ import numpy as np
 import gc
 from sklearn.utils import shuffle
 from imgaug.imgaug import augmenters as iaa
+import scipy
 
 class GeneratorFera2017():
     def __init__(self, path):
@@ -13,7 +14,7 @@ class GeneratorFera2017():
 
     def get_segments(self, partition):
         databases = [
-            {'fname':'fera/fera17.h5', 'datasets':[partition+'/pose5', partition+'/pose6']},
+            {'fname':'fera17.h5', 'datasets':[partition+'/pose5', partition+'/pose6']},
         ]
 
         data_types = ['face']
@@ -46,9 +47,20 @@ class GeneratorFera2017():
         while True:
             for s in segments:
                 print s
-                for b in self.get_batches(s, batch_size):
+                for (b,_) in self.get_batches(s, batch_size):
                     yield b
 
+
+    def generate_train_supervised(self, batch_size):
+        segments = self.get_segments('train')
+        np.random.shuffle(segments)
+
+        while True:
+            for s in segments:
+                print s
+                for b in self.get_batches(s, batch_size):
+                    yield b
+                    
     def generate_test(self, batch_size):
         segments = self.get_segments('test')
         np.random.shuffle(segments)
@@ -61,7 +73,7 @@ class GeneratorFera2017():
 
     def n_samples_pose(self, pose='pose0'):
         n_train, n_test = (0,0)
-        with h5py.File(self.path+'fera/fera17.h5', 'r') as hf:
+        with h5py.File(self.path+'fera17.h5', 'r') as hf:
             for k,v in hf['train/'+pose].items():
                 n_train += v['faces'].shape[0]
             '''
@@ -153,11 +165,16 @@ class GeneratorFacesAndPatches():
     def __init__(self, path):
         self.path = path
 
-    def get_segments(self):
-        databases = [
-            {'fname':'disfa/disfa.h5', 'datasets':['train/pose0', 'train/pose1']},
-            {'fname':'fera/fera17.h5', 'datasets':['train/pose5', 'train/pose6']}
-        ]
+    def get_segments(self, partition):
+        if partition == 'train':
+            databases = [
+                {'fname':'disfa/disfa.h5', 'datasets':[partition+'/pose0', partition+'/pose1']},
+                {'fname':'fera/fera17.h5', 'datasets':[partition+'/pose5', partition+'/pose6']}
+            ]
+        elif partition == 'test':
+            databases = [
+                {'fname':'disfa/disfa.h5', 'datasets':[partition+'/pose0', partition+'/pose1']}
+            ]
 
         data_types = ['faces', 'faces_patched', 'leye', 'reye', 'mouth', 'nose']
 
@@ -179,17 +196,15 @@ class GeneratorFacesAndPatches():
             faces_patched = np.reshape(v['faces_patched'], (-1, 224, 224, 3))
             if segment['type']=='faces_patched':
                 for i in range(1, faces_patched.shape[0]/mini_batch_size):
-                    batches.append((faces_patched[(i-1)*mini_batch_size:i*mini_batch_size],
-                                    faces_patched[(i-1)*mini_batch_size:i*mini_batch_size]))
+                    batches.append(faces_patched[(i-1)*mini_batch_size:i*mini_batch_size])
             else:
                 for i in range(1, v[segment['type']].shape[0]/mini_batch_size):
-                    batches.append((v[segment['type']][(i-1)*mini_batch_size:i*mini_batch_size],
-                                    v[segment['type']][(i-1)*mini_batch_size:i*mini_batch_size]))
+                    batches.append(v[segment['type']][(i-1)*mini_batch_size:i*mini_batch_size])
 
         return batches
 
     def generate_train(self, batch_size=32):
-        segments = self.get_segments()
+        segments = self.get_segments('train')
         np.random.shuffle(segments)
 
         while True:
@@ -198,21 +213,17 @@ class GeneratorFacesAndPatches():
                 for b in self.get_batches(s, batch_size):
                     yield b
 
-    def generate_validation(self, mini_batch_size=32):
-        types = ['face', 'face_patched', 'leye', 'reye', 'mouth', 'nose']
+    
+    def generate_test(self, batch_size=32):
+        segments = self.get_segments('test')
+        np.random.shuffle(segments)
+
         while True:
-            with h5py.File(self.path+'disfa/disfa.h5', 'r') as hf:
-                for k,v in hf['test/pose0'].items():
-                    for type in types:
-                        for i in range(1, v[type].shape[0]/mini_batch_size):
-                            yield (v[type][(i-1)*mini_batch_size:i*mini_batch_size],
-                                   v[type][(i-1)*mini_batch_size:i*mini_batch_size])
-            gc.collect()
-
-    def generate_test(self, mini_batch_size=32):
-        #TODO : get batches from femo
-        pass
-
+            for s in segments:
+                print s
+                for b in self.get_batches(s, batch_size):
+                    yield b
+                    
     def n_samples_train(self):
         disfa = GeneratorDisfa(self.path + 'disfa/')
         fera = GeneratorFera2017(self.path + 'fera/')
@@ -348,10 +359,10 @@ if __name__ == '__main__':
     path_server = '/data/data1/corneanu/'
 
     print '---------Fera2017---------'
-    dtg = GeneratorFera2017(path_server)
+    dtg = GeneratorFacesAndPatches(path_server)
 
     print dtg.n_samples_train()
     print dtg.n_samples_test()
 
-    for i,(batch, aus) in enumerate(dtg.generate_train(32)):
-        print '{}, {}, {}'.format(i, batch.shape, aus.shape)
+    for i,(batch) in enumerate(dtg.generate_test(32)):
+        print '{}, {}'.format(i, batch.shape)
