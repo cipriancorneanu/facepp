@@ -165,7 +165,7 @@ class GeneratorFacesAndPatches():
     def __init__(self, path):
         self.path = path
 
-    def get_segments(self, partition):
+    def get_segments(self, partition, type):
         if partition == 'train':
             databases = [
                 {'fname':'disfa/disfa.h5', 'datasets':[partition+'/pose0', partition+'/pose1']},
@@ -176,7 +176,10 @@ class GeneratorFacesAndPatches():
                 {'fname':'disfa/disfa.h5', 'datasets':[partition+'/pose0', partition+'/pose1']}
             ]
 
-        data_types = ['faces', 'faces_patched', 'leye', 'reye', 'mouth', 'nose']
+        if type == 'all':
+            data_types = ['faces', 'faces_patched', 'leye', 'reye', 'mouth', 'nose']
+        else:
+            data_type = [type]
 
         segments = []
         for db in databases:
@@ -203,8 +206,8 @@ class GeneratorFacesAndPatches():
 
         return batches
 
-    def generate_train(self, batch_size=32):
-        segments = self.get_segments('train')
+    def generate(self, partition, type, batch_size=32):
+        segments = self.get_segments(partition=partition, type=type)
         np.random.shuffle(segments)
 
         while True:
@@ -213,23 +216,30 @@ class GeneratorFacesAndPatches():
                 for b in self.get_batches(s, batch_size):
                     yield b
 
-    
-    def generate_test(self, batch_size=32):
-        segments = self.get_segments('test')
-        np.random.shuffle(segments)
+    def n_samples_train_face(self):
+        disfa = GeneratorDisfa(self.path + 'disfa/')
+        fera = GeneratorFera2017(self.path + 'fera/')
+        return 2*(disfa.n_samples_train()+fera.n_samples_train())
 
-        while True:
-            for s in segments:
-                print s
-                for b in self.get_batches(s, batch_size):
-                    yield b
-                    
-    def n_samples_train(self):
+    def n_samples_test_face(self):
+        disfa = GeneratorDisfa(self.path + 'disfa/')
+        return 2*disfa.n_samples_test()
+
+    def n_samples_train_patch(self):
+        disfa = GeneratorDisfa(self.path + 'disfa/')
+        fera = GeneratorFera2017(self.path + 'fera/')
+        return (disfa.n_samples_train()+fera.n_samples_train())
+
+    def n_samples_test_patch(self):
+        disfa = GeneratorDisfa(self.path + 'disfa/')
+        return disfa.n_samples_test()
+
+    def n_samples_train_all(self):
         disfa = GeneratorDisfa(self.path + 'disfa/')
         fera = GeneratorFera2017(self.path + 'fera/')
         return 6*(disfa.n_samples_train()+fera.n_samples_train())
 
-    def n_samples_test(self):
+    def n_samples_test_all(self):
         disfa = GeneratorDisfa(self.path + 'disfa/')
         return 6*disfa.n_samples_test()
 
@@ -364,5 +374,5 @@ if __name__ == '__main__':
     print dtg.n_samples_train()
     print dtg.n_samples_test()
 
-    for i,(batch) in enumerate(dtg.generate_test(32)):
+    for i,(batch) in enumerate(dtg.generate('test', 'all', batch_size=32)):
         print '{}, {}'.format(i, batch.shape)
