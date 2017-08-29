@@ -17,9 +17,9 @@ class Generator():
     def _get_segments(self, partition):
         if partition == 'train':
             if self.db == 'disfa':
-                databases = {'fname':'disfa/disfa.h5', 'datasets':[self.partition+'/pose0', self.partition+'/pose1']}
+                databases = {'fname':'disfa/disfa.h5', 'datasets':[partition+'/pose0', partition+'/pose1']}
             elif self.db == 'fera':
-                databases = {'fname':'fera/fera17.h5', 'datasets':[self.partition+'/pose5', self.partition+'/pose6']}
+                databases = {'fname':'fera/fera17.h5', 'datasets':[partition+'/pose5', partition+'/pose6']}
             elif self.db == 'all':
                 databases = [
                     {'fname':'disfa/disfa.h5', 'datasets':[partition+'/pose0', partition+'/pose1']},
@@ -73,8 +73,8 @@ class Generator():
 
 
     def n_samples_train(self):
-        disfa = GeneratorDisfa(self.path + 'disfa/')
-        fera = GeneratorFera(self.path + 'fera/')
+        disfa = GeneratorDisfa(self.path + 'disfa/', 'disfa', self.type)
+        fera = GeneratorFera(self.path + 'fera/', 'fera', self.type)
 
         n_samples_fera = disfa.n_samples_train()
         n_samples_disfa = fera.n_samples_train()
@@ -95,8 +95,8 @@ class Generator():
                 return 6*(n_samples_fera+n_samples_disfa)
 
     def n_samples_validation(self):
-        disfa = GeneratorDisfa(self.path + 'disfa/')
-        fera = GeneratorFera(self.path + 'fera/')
+        disfa = GeneratorDisfa(self.path + 'disfa/', 'disfa', self.type)
+        fera = GeneratorFera(self.path + 'fera/', 'disfa', self.type)
 
         n_samples_fera = disfa.n_samples_test()
         n_samples_disfa = disfa.n_samples_test()
@@ -120,8 +120,8 @@ class Generator():
         return 30
 
 class GeneratorFera(Generator):
-    def __init__(self, path, db, partition, type):
-        Generator.__init__(self, path, db, partition, type)
+    def __init__(self, path, db, type):
+        Generator.__init__(self, path, db, type)
 
     def n_samples_pose(self, pose='pose0'):
         n_train, n_test = (0,0)
@@ -148,8 +148,8 @@ class GeneratorFera(Generator):
 
 
 class GeneratorDisfa(Generator):
-    def __init__(self, path, db, partition, type):
-        Generator.__init__(self, path, db, partition, type)
+    def __init__(self, path, db, type):
+        Generator.__init__(self, path, db, type)
 
     def n_samples_pose(self, pose='pose0'):
         n_train, n_test = (0,0)
