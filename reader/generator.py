@@ -70,18 +70,18 @@ class Generator():
                             break
         return segments
 
-    def _get_batches(self, segment, mini_batch_size, with_labels):
+    def _get_batches_(self, segment, mini_batch_size, with_labels):
         batches = []
         with h5py.File(self.path+segment['db'], 'r') as hf:
             v = hf[segment['ds']+'/'+segment['segm']]
             if segment['type']=='faces_patched':
                 faces_patched = np.reshape(v['faces_patched'], (-1, 224, 224, 3))
-                for i in range(1, faces_patched.shape[0]/mini_batch_size):
+                for i in range(0, faces_patched.shape[0]/mini_batch_size):
                     if with_labels:
-                        batches.append((faces_patched[(i-1)*mini_batch_size:i*mini_batch_size],
-                                        v['aus'][(i-1)*mini_batch_size:i*mini_batch_size]))
+                        batches.append((faces_patched[(i)*mini_batch_size:(i+1)*mini_batch_size],
+                                        v['aus'][(i)*mini_batch_size:(i+1)*mini_batch_size]))
                     else:
-                        batches.append(faces_patched[(i-1)*mini_batch_size:i*mini_batch_size])
+                        batches.append(faces_patched[(i)*mini_batch_size:(i+1)*mini_batch_size])
             else:
                 for i in range(0, v[segment['type']].shape[0]/mini_batch_size):
                     ims = np.asarray([imresize(im, (224,224)) for im in v[segment['type']][(i)*mini_batch_size:(i+1)*mini_batch_size]], dtype=np.uint8)
@@ -91,6 +91,26 @@ class Generator():
                         batches.append(ims)
 
         return batches
+
+    #TODO: create get_batches function that returns selectable patches
+    def _get_batches(self, segment, mini_batch_size, with_labels):
+        batches = []
+        with h5py.File(self.path+segment['db'], 'r') as hf:
+            v = hf[segment['ds']+'/'+segment['segm']]
+            for i in range(0, v[segment['type'][0]].shape[0]/mini_batch_size):
+                batch = []
+                for tp in v[segment['type']]:
+                    if tp == 'faces_patched':
+                        ims = np.reshape(v['faces_patched'], (-1, 224, 224, 3))
+                    else:
+                        ims = np.asarray([imresize(im, (224,224)) for im in v[tp][(i)*mini_batch_size:(i+1)*mini_batch_size]], dtype=np.uint8)
+                    batch.append(ims)
+
+                if with_labels:
+                    batch.append(v['aus'][(i)*mini_batch_size:(i+1)*mini_batch_size])
+                batches.append(tuple(batch))
+
+        return tuple(batches)
 
     def _get_batches_meta(self, segment, mini_batch_size):
         batches = []
