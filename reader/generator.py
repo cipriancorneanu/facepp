@@ -99,7 +99,7 @@ class Generator():
             v = hf[segment['ds']+'/'+segment['segm']]
             for i in range(0, v[segment['type'][0]].shape[0]/mini_batch_size):
                 batch = []
-                for tp in v[segment['type']]:
+                for tp in segment['type']:
                     if tp == 'faces_patched':
                         ims = np.reshape(v['faces_patched'], (-1, 224, 224, 3))
                     else:
@@ -126,9 +126,11 @@ class Generator():
                      v['tasks'][(i-1)*mini_batch_size:i*mini_batch_size]))
         return batches
 
-    def generate(self, partition, pose='all', batch_size=32, with_labels=False):
+    def generate(self, partition, pose='all', batch_size=32, with_labels=False, shuffle=True):
         segments = self._get_segments(partition, pose)
-        np.random.shuffle(segments)
+
+        if shuffle:
+            np.random.shuffle(segments)
 
         while True:
             for s in segments:
@@ -140,13 +142,6 @@ class Generator():
         disfa = GeneratorDisfa(self.path + 'disfa/', 'disfa', self.type)
         fera = GeneratorFera(self.path + 'fera/', 'fera', self.type)
 
-        if self.type in ['faces', 'faces_patched', 'leye', 'reye', 'nose', 'mouth']:
-            if self.db == 'fera':
-                return  fera.n_samples_train(partition)
-            if self.db == 'disfa':
-                return  disfa.n_samples_train(partition)
-            if self.db == 'all':
-                return (fera.n_samples_train(partition)+disfa.n_samples_train(partition))
         if self.type == 'all':
             if self.db == 'fera':
                 return 6*fera.n_samples_train(partition)
@@ -154,18 +149,18 @@ class Generator():
                 return 6*disfa.n_samples_train(partition)
             if self.db == 'all':
                 return 6*(fera.n_samples_train(partition)+disfa.n_samples_train(partition))
-
+        else:
+            if self.db == 'fera':
+                return  fera.n_samples_train(partition)
+            if self.db == 'disfa':
+                return  disfa.n_samples_train(partition)
+            if self.db == 'all':
+                return (fera.n_samples_train(partition)+disfa.n_samples_train(partition))
+            
     def n_samples_validation(self, partition='all'):
         disfa = GeneratorDisfa(self.path + 'disfa/', 'disfa', self.type)
         fera = GeneratorFera(self.path + 'fera/', 'disfa', self.type)
-
-        if self.type in ['faces', 'faces_patched', 'leye', 'reye', 'nose', 'mouth']:
-            if self.db == 'fera':
-                return fera.n_samples_validation(partition)
-            if self.db == 'disfa':
-                return disfa.n_samples_validation(partition)
-            if self.db == 'all':
-                return disfa.n_samples_validation(partition)+fera.n_samples_validation(partition)
+        
         if self.type == 'all':
             if self.db == 'fera':
                 return 6*fera.n_samples_validation(partition)
@@ -173,7 +168,14 @@ class Generator():
                 return 6*disfa.n_samples_validation(partition)
             if self.db == 'all':
                 return 6*(fera.n_samples_validation(partition)+disfa.n_samples_validation(partition))
-
+        else:
+            if self.db == 'fera':
+                return fera.n_samples_validation(partition)
+            if self.db == 'disfa':
+                return disfa.n_samples_validation(partition)
+            if self.db == 'all':
+                return disfa.n_samples_validation(partition)+fera.n_samples_validation(partition)
+            
     def n_samples_test(self):
         return 32
 
@@ -333,7 +335,7 @@ if __name__ == '__main__':
     path_server = '/data/data1/corneanu/'
 
     print '---------Fera2017---------'
-    dtg = Generator(path_server, db='fera', type='faces')
+    dtg = Generator(path_server, db='fera', type=['faces', 'mouth', 'leye', 'faces_patched'])
     print dtg.n_samples_train('pose5')
     print dtg.n_samples_train('pose6')
     print dtg.n_samples_train()
@@ -341,13 +343,10 @@ if __name__ == '__main__':
     print dtg.n_samples_validation('pose6')
     print dtg.n_samples_validation('all')
 
-
-
-    '''
-    for i,obs in enumerate(dtg_fera_faces.generate(partition='train', batch_size=32, with_labels=False)):
-        if i > dtg_fera_faces.n_samples_train()/32 : break
-        print '{}, {}'.format(i, obs.shape)
-
+    for i,(faces, mouths,leye, fpatched, aus) in enumerate(dtg.generate(partition='train', batch_size=32, with_labels=True)):
+        if i > dtg.n_samples_train()/32 : break
+        print '{}, {}, {}, {}'.format(i, faces.shape, mouths.shape, aus.shape)
+        
     '''
     for i,obs in enumerate(dtg.generate(partition='validation', pose='pose5', batch_size=32, with_labels=False)):
         if i > dtg.n_samples_validation('pose5')/32 : break
@@ -357,5 +356,5 @@ if __name__ == '__main__':
     for i,obs in enumerate(dtg.generate(partition='test', batch_size=32, with_labels=False)):
         if i >= dtg.n_samples_test()/32 : break
         print '{}, {}'.format(i, obs.shape)
- 
+    '''
         
