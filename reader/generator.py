@@ -9,6 +9,17 @@ from imgaug.imgaug import augmenters as iaa
 import scipy
 from  scipy.misc import imresize
 
+class GeneratorPreds():
+    def __init__(self, path):
+        self.path = path
+
+    def generate(self, partition, type, batch_size=32):
+        with h5py.File(self.path+'/'+partition, 'r') as hf:
+            dt = hf['faces']
+            for i in range(0, dt.shape[0]/batch_size):
+                yield((dt['gt'][(i)*batch_size:(i+1)*batch_size],
+                                    dt['pred'][(i)*batch_size:(i+1)*batch_size]))
+
 class Generator():
     def __init__(self, path, db, type):
         self.path = path
@@ -333,28 +344,7 @@ class GeneratorMLMNIST():
 
 if __name__ == '__main__':
     path_server = '/data/data1/corneanu/'
+    dtg = GeneratorPreds(path_server)
 
-    print '---------Fera2017---------'
-    dtg = Generator(path_server, db='fera', type=['faces', 'mouth', 'leye', 'faces_patched'])
-    print dtg.n_samples_train('pose5')
-    print dtg.n_samples_train('pose6')
-    print dtg.n_samples_train()
-    print dtg.n_samples_validation('pose5')
-    print dtg.n_samples_validation('pose6')
-    print dtg.n_samples_validation('all')
-
-    for i,(faces, mouths,leye, fpatched, aus) in enumerate(dtg.generate(partition='train', batch_size=32, with_labels=True)):
-        if i > dtg.n_samples_train()/32 : break
-        print '{}, {}, {}, {}'.format(i, faces.shape, mouths.shape, aus.shape)
-        
-    '''
-    for i,obs in enumerate(dtg.generate(partition='validation', pose='pose5', batch_size=32, with_labels=False)):
-        if i > dtg.n_samples_validation('pose5')/32 : break
-        print '{}, {}'.format(i, obs.shape)
-
-    
-    for i,obs in enumerate(dtg.generate(partition='test', batch_size=32, with_labels=False)):
-        if i >= dtg.n_samples_test()/32 : break
-        print '{}, {}'.format(i, obs.shape)
-    '''
-        
+    for i, (gt, pred) in enumerate(dtg.generate(partition='train', type='face', batch_size=32)):
+        print '{}, {}, {}'.format(i, gt.shape, pred.shape)
