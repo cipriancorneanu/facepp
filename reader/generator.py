@@ -14,12 +14,15 @@ class GeneratorPreds():
         self.path = path
 
     def generate(self, partition, type, batch_size=32):
-        with h5py.File(self.path+'/'+partition, 'r') as hf:
-            dt = hf['faces']
-            for i in range(0, dt.shape[0]/batch_size):
-                yield((dt['gt'][(i)*batch_size:(i+1)*batch_size],
+        with h5py.File(self.path+'/fera17_preds.h5', 'r') as hf:
+            data = [hf[partition+'/'+t] for t in type]
+            for i in range(0, data[0]['gt'].shape[0]/batch_size):
+                dvdv = []
+                for dt in data:
+                    dvdv.append((dt['gt'][(i)*batch_size:(i+1)*batch_size],
                                     dt['pred'][(i)*batch_size:(i+1)*batch_size]))
-
+                yield tuple(dvdv)
+                    
 class Generator():
     def __init__(self, path, db, type):
         self.path = path
@@ -346,5 +349,15 @@ if __name__ == '__main__':
     path_server = '/data/data1/corneanu/'
     dtg = GeneratorPreds(path_server)
 
-    for i, (gt, pred) in enumerate(dtg.generate(partition='train', type='face', batch_size=32)):
-        print '{}, {}, {}'.format(i, gt.shape, pred.shape)
+    for i, ((faces_gt, faces_pred), (mouth_gt, mouth_pred), (nose_gt, nose_pred), (leye_gt, leye_pred)) in enumerate(dtg.generate(partition='validation', type=['faces', 'mouth', 'nose', 'leye'], batch_size=32)):
+        for i in range(faces_gt.shape[0]):
+            print '---------{}--------'.format(i)
+            print 'Faces gt {}'.format(faces_gt[i,:])
+            print 'Faces_pred {}'.format(faces_pred[i,:])
+            print 'Mouth gt {}'.format(mouth_gt[i,:])
+            print 'Mouth pred {}'.format(mouth_pred[i,:])
+            print 'Nose gt {}'.format(nose_gt[i,:])
+            print 'Nose pred {}'.format(nose_pred[i,:])
+            print 'Leye gt {}'.format(leye_gt[i,:])
+            print 'Leye pred {}'.format(leye_pred[i,:])
+        if i > 5: break 
