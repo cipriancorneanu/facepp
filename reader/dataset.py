@@ -106,6 +106,26 @@ class ReaderFera2017():
         self.aus = [1, 4, 6, 7, 10, 12, 14, 15, 17, 23]
         self.aus_int = ['AU01', 'AU04', 'AU06', 'AU10', 'AU12', 'AU14', 'AU17']
 
+        self.subjects = ['F001', 'F002', 'F003', 'F004', 'F005', 'F006', 'F007', 'F008', 'F009', 'F010',
+                         'F011', 'F012', 'F013', 'F014', 'F015', 'F016', 'F017', 'F018', 'F019', 'F020',
+                         'F021', 'F022', 'F023', 'M001', 'M002', 'M003', 'M004', 'M005', 'M006', 'M007',
+                         'M008', 'M009', 'M010', 'M011', 'M012', 'M013', 'M014', 'M015', 'M016', 'M017', 'M018']
+
+        self.folds3 = [['M016', 'F015', 'M005', 'F010', 'M009', 'F016', 'F001', 'M008', 'M013', 'M015', 'F017', 'F014', 'M010', 'F019'],
+                        ['M011', 'F022', 'M007', 'M017', 'F003', 'M003', 'F004', 'M018', 'M006', 'F012', 'M002', 'M014', 'F018', 'F006'],
+                        ['M004', 'F002', 'F009', 'F020', 'F007', 'F023', 'M012', 'M001', 'F021', 'F011', 'F013', 'F005', 'F008']]
+
+        self.folds10 = [['M016', 'F015', 'M005', 'F010'],
+                        ['M009', 'F016', 'F001', 'M008'],
+                        ['M013', 'M015', 'F017', 'F014'],
+                        ['M010', 'F019', 'M011', 'F022'],
+                        ['M007', 'M017', 'F003', 'M003'],
+                        ['F004', 'M018', 'M006', 'F012'],
+                        ['M002', 'M014', 'F018', 'F006'],
+                        ['M004', 'F002', 'F009', 'F020'],
+                        ['F007', 'F023', 'M012', 'M001'],
+                        ['F021', 'F011', 'F013', 'F005', ['F008']]]
+
     def read(self, opath, mpath, partition = 'train', poses=[6], cores=4, start=0, stop=1):
         if partition == 'train':
             root = 'FERA17_TR_'
@@ -248,6 +268,66 @@ class ReaderFera2017():
 
         # Load train data from aligned
         ims, lms, aus, ints, subjects, tasks, poses = ([], [], [], [], [], [], [])
+
+        # Get data
+        for subject_idx, subject in enumerate(subjects):
+            # Get files corresponding to subject
+            subject_files = [f for f in files_fera17 if subject in f]
+            print subject_files
+
+            for fname in subject_files:
+                print 'Loading file {}'.format(fname)
+                dt = cPickle.load(open(path+fname, 'rb'))
+
+                ims.append(dt['ims'])
+                lms.append(dt['geoms'])
+                aus.append(dt['occ'])
+                ints.append(dt['int'])
+                subjects.append(dt['subjects']*np.concatenate(dt['ims']).shape[0])
+                poses.append(dt['poses']*np.concatenate(dt['ims']).shape[0])
+                tasks.append(dt['tasks']*np.concatenate(dt['ims']).shape[0])
+
+                # Append missing labels from BP4D
+                task = fname.split('_')[2]
+                labels = read_csv(subject+'_'+task)
+
+                print(labels)
+
+            (ims, lms, aus, ints, subjects, poses, tasks) = (np.squeeze(np.concatenate(ims, axis=1)), np.squeeze(np.concatenate(lms, axis=1)), \
+                                               np.squeeze(np.concatenate(aus, axis=1)), np.squeeze(np.concatenate(ints, axis=1)),
+                                               np.concatenate(subjects), np.concatenate(poses), np.concatenate(tasks))
+
+            print 'Total number of samples is {}'.format(ims.shape)
+
+            # Shuffle and split
+            idx = np.random.permutation(ims.shape[0])
+            slice_length = 256
+            indices = [slice_length*x for x in range(1,int(np.ceil(ims.shape[0]/slice_length+1)))]
+            splits = np.array_split(idx, indices)
+
+            # Dump data
+            if os.path.isfile(self.path+out_fname):
+                file = h5py.File(self.path+out_fname, 'r+')
+            else:
+                file = h5py.File(self.path+out_fname, 'w')
+
+            grp = file.create_group(partition+'/'+pose+'/')
+            for i,x in enumerate(splits):
+                segment = grp.create_group('subject'+str(subject_idx)+'/segment_'+str(i))
+                segment.create_dataset('faces', data=ims[x])
+                segment.create_dataset('lms', data=lms[x])
+                segment.create_dataset('aus', data=aus[x])
+                segment.create_dataset('subjects', data=subjects[x])
+                segment.create_dataset('poses', data=poses[x])
+                segment.create_dataset('tasks', data=tasks[x])
+
+    '''
+    def prepare(self, partition, pose, out_fname):
+        path = self.path+partition+'/aligned/'+pose+'/'
+        files_fera17 = sorted([f for f in os.listdir(path)])
+
+        # Load train data from aligned
+        ims, lms, aus, ints, subjects, tasks, poses = ([], [], [], [], [], [], [])
         for fname in files_fera17:
             print 'Loading file {}'.format(fname)
             dt = cPickle.load(open(path+fname, 'rb'))
@@ -259,6 +339,8 @@ class ReaderFera2017():
             subjects.append(dt['subjects']*np.concatenate(dt['ims']).shape[0])
             poses.append(dt['poses']*np.concatenate(dt['ims']).shape[0])
             tasks.append(dt['tasks']*np.concatenate(dt['ims']).shape[0])
+
+
 
         (ims, lms, aus, ints, subjects, poses, tasks) = (np.squeeze(np.concatenate(ims, axis=1)), np.squeeze(np.concatenate(lms, axis=1)), \
                                            np.squeeze(np.concatenate(aus, axis=1)), np.squeeze(np.concatenate(ints, axis=1)),
@@ -284,10 +366,10 @@ class ReaderFera2017():
             segment.create_dataset('faces', data=ims[x])
             segment.create_dataset('lms', data=lms[x])
             segment.create_dataset('aus', data=aus[x])
-            '''segment.create_dataset('ints', data=ints[x]) There is a problem woth intensities. Don't have same dim as others'''
             segment.create_dataset('subjects', data=subjects[x])
             segment.create_dataset('poses', data=poses[x])
             segment.create_dataset('tasks', data=tasks[x])
+    '''
 
     def prepare_patched_faces(self, partition, pose, out_fname, verbose=False):
         print 'Prepare patched faces for database {}'.format(out_fname)
@@ -338,6 +420,35 @@ class ReaderFera2017():
                 for k,v in markers.items():
                     segment_v.create_dataset(k, data=np.asarray(patches[k]))
 
+    '''
+    def prepare_patches(self, partition, pose, out_fname):
+        markers = {
+            'leye': np.concatenate((np.arange(17,22), np.arange(36,42))),
+            'reye': np.concatenate((np.arange(42,48), np.arange(22,27))),
+            'nose': np.arange(27,36),
+            'mouth': np.arange(48,68),
+            }
+
+        print 'Prepare patches for database {}'.format(out_fname)
+        with h5py.File(self.path+out_fname, 'r+') as hf:
+            for segment_k,segment_v in hf[partition+'/'+pose+'/'].items():
+                print '{} of dataset {}'.format(segment_k, partition+'/'+pose+'/')
+                faces, lms = segment_v['faces'], segment_v['lms']
+
+                patches = {'leye':[], 'reye':[], 'nose':[], 'mouth':[]}
+                for i, (face, lm) in enumerate(zip(faces, lms)):
+                    # Extract patches
+                    for k,v in markers.items():
+                        if np.sum(lm)==0:
+                            patch = np.zeros((56, 56, 3))
+                        else:
+                            patch = extract(face, square_bbox(lm[v]), extension=1.3, size=56)[0]
+                        patches[k].append(patch)
+
+                for k,v in markers.items():
+                    segment_v.create_dataset(k, data=np.asarray(patches[k]))
+    '''
+    
     def _accumulate_data(self, dt, ims, geoms, occ, int, subjects, tasks, poses):
         dt['ims'].append(ims)
         dt['geoms'].append(geoms)
@@ -423,6 +534,13 @@ class ReaderFera2017():
     def _get_tasks(self, subject):
         fnames = [f for f in os.listdir(self.path_ims) if subject in f and f.endswith('.mp4')]
         return sorted(list(set([re.split('_', f)[3] for f in fnames])))
+
+    def _split_in_folds(self, files, n_folds):
+        # Subject explusic fold splitting
+        N = len(files)
+        n_files_fold =
+
+        return folds
 
 def update_slices(slices, slice, idx):
     prefix  = list(slices[:slice])
