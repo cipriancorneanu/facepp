@@ -266,11 +266,11 @@ class ReaderFera2017():
         path = self.path+partition+'/aligned/'+pose+'/'
         files_fera17 = sorted([f for f in os.listdir(path)])
 
-        # Load train data from aligned
-        ims, lms, aus, ints, subjects, tasks, poses = ([], [], [], [], [], [], [])
-
         # Get data
-        for subject_idx, subject in enumerate(subjects):
+        for subject_idx, subject in enumerate(self.subjects):
+            # Load train data from aligned
+            ims, lms, aus, ints, subjects, tasks, poses = ([], [], [], [], [], [], [])
+
             # Get files corresponding to subject
             subject_files = [f for f in files_fera17 if subject in f]
             print subject_files
@@ -281,22 +281,22 @@ class ReaderFera2017():
 
                 ims.append(dt['ims'])
                 lms.append(dt['geoms'])
-                aus.append(dt['occ'])
+
+                # Append labels from BP4D
+                task = fname.split('_')[2]
+                aus_bp4d = np.asarray(read_csv(self.path+'/AU_OCC/'+subject+'_'+task+'.csv'))[1:,[1,2,4,6,7,10,12,14,15,17,23,24]]
+                
+                aus.append(aus_bp4d)
                 ints.append(dt['int'])
                 subjects.append(dt['subjects']*np.concatenate(dt['ims']).shape[0])
                 poses.append(dt['poses']*np.concatenate(dt['ims']).shape[0])
                 tasks.append(dt['tasks']*np.concatenate(dt['ims']).shape[0])
 
-                # Append missing labels from BP4D
-                task = fname.split('_')[2]
-                labels = read_csv(subject+'_'+task)
-
-                print(labels)
-
+                
             (ims, lms, aus, ints, subjects, poses, tasks) = (np.squeeze(np.concatenate(ims, axis=1)), np.squeeze(np.concatenate(lms, axis=1)), \
-                                               np.squeeze(np.concatenate(aus, axis=1)), np.squeeze(np.concatenate(ints, axis=1)),
+                                               np.squeeze(np.concatenate(aus, axis=0)), np.squeeze(np.concatenate(ints, axis=1)),
                                                np.concatenate(subjects), np.concatenate(poses), np.concatenate(tasks))
-
+            
             print 'Total number of samples is {}'.format(ims.shape)
 
             # Shuffle and split
@@ -310,10 +310,9 @@ class ReaderFera2017():
                 file = h5py.File(self.path+out_fname, 'r+')
             else:
                 file = h5py.File(self.path+out_fname, 'w')
-
-            grp = file.create_group(partition+'/'+pose+'/')
+                
             for i,x in enumerate(splits):
-                segment = grp.create_group('subject'+str(subject_idx)+'/segment_'+str(i))
+                segment = file.create_group(partition+'/'+pose+'/'+'subject_'+subject+'/segment_'+str(i))
                 segment.create_dataset('faces', data=ims[x])
                 segment.create_dataset('lms', data=lms[x])
                 segment.create_dataset('aus', data=aus[x])
@@ -534,13 +533,6 @@ class ReaderFera2017():
     def _get_tasks(self, subject):
         fnames = [f for f in os.listdir(self.path_ims) if subject in f and f.endswith('.mp4')]
         return sorted(list(set([re.split('_', f)[3] for f in fnames])))
-
-    def _split_in_folds(self, files, n_folds):
-        # Subject explusic fold splitting
-        N = len(files)
-        n_files_fold =
-
-        return folds
 
 def update_slices(slices, slice, idx):
     prefix  = list(slices[:slice])
@@ -1061,5 +1053,5 @@ def extract_patches(face, geom):
         return patches
 
 if __name__ == '__main__':
-    reader = ReaderDisfa('/Users/cipriancorneanu/Research/data/disfa/')
-    reader.prepare_patches(partition='train', pose='pose0', out_fname='disfa_sample.h5')
+    reader = ReaderFera2017('/Users/cipriancorneanu/Research/data/disfa/')
+    reader.prepare(partition='train', pose='pose6', out_fname='disfa.h5')
