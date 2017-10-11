@@ -198,69 +198,70 @@ class GeneratorBP4D():
     def __init__(self, path, type):
         self.path = path
         self.type = type
+        if type == 'all':
+            self.n_patches = 5
+        else:
+            self.n_patches = len(type)
 
-    def generate(self, fold, batch_size=32):
+    def generate(self, fold, batch_size=32, with_labels=False):
         segments = self._get_segments(self._get_subject_list_3fold(fold))
         np.random.shuffle(segments)
 
         while True:
             for s in segments:
                 print s
-                for b in self._get_batches(s, batch_size):
+                for b in self._get_batches(s, batch_size, with_labels):
                     yield b
 
     def _get_subject_list_3fold(self, fold):
         if fold==1:
-            return ['M016', 'F015', 'M005', 'F010', 'M009', 'F016', 'F001', 'M008', 'M013', 'M015', 'F017', 'F014', 'M010', 'F019'],
+            return ['M016', 'F015', 'M005', 'F010', 'M009', 'F016', 'F001', 'M008', 'M013', 'M015', 'F017', 'F014', 'M010', 'F019']
         elif fold==2:
-            return ['M011', 'F022', 'M007', 'M017', 'F003', 'M003', 'F004', 'M018', 'M006', 'F012', 'M002', 'M014', 'F018', 'F006'],
+            return ['M011', 'F022', 'M007', 'M017', 'F003', 'M003', 'F004', 'M018', 'M006', 'F012', 'M002', 'M014', 'F018', 'F006']
         elif fold==3:
             return ['M004', 'F002', 'F009', 'F020', 'F007', 'F023', 'M012', 'M001', 'F021', 'F011', 'F013', 'F005', 'F008']
 
 
     def _get_segments(self, subject_list):
-        databases = [{'fname':'fera2017/bp4d.h5', 'datasets':['/train/pose6']}]
-
+        databases = [{'fname':'bp4d.h5', 'datasets':['/train/pose6']}]
         if self.type == 'all':
             data_types = ['faces', 'leye', 'reye', 'mouth', 'nose']
         else:
-            data_types = [self.type]
+            data_types = self.type
 
         segments = []
         for db in databases:
-            print db
-            print db['fname']
             with h5py.File(self.path+db['fname'], 'r') as hf:
                 for ds in db['datasets']:
                     for subject in subject_list:
                         for segment_k, segment_v in hf[ds+'/subject_'+subject].items():
                             np.random.shuffle(data_types)
                             for dt_type in data_types:
-                                s = {'db':db['fname'], 'ds':ds, 'subject':'/subject'+subject, 'segm':segment_k, 'type':dt_type}
+                                s = {'db':db['fname'], 'ds':ds, 'subject':'/subject_'+subject, 'segm':'/'+segment_k, 'type':dt_type}
                                 segments.append(s)
 
-    def _get_batches(self, segment, mini_batch_size, with_labels):
+        return segments
+
+    def _get_batches(self, segment, mini_batch_size, with_labels=False):
         batches = []
         with h5py.File(self.path+segment['db'], 'r') as hf:
-            v = hf[segment['ds']+'/'+segment['segm']+segment['subject']]
-            for i in range(0, v[segment['type'][0]].shape[0]/mini_batch_size):
-                batch = []
-                for tp in segment['type']:
-                    ims = np.asarray([imresize(im, (224,224)) for im in v[tp][(i)*mini_batch_size:(i+1)*mini_batch_size]], dtype=np.uint8)
-                    batch.append(ims)
-                if with_labels:
-                    batch.append(v['aus'][(i)*mini_batch_size:(i+1)*mini_batch_size])
-                batches.append(tuple(batch))
-
-        return tuple(batches)
+            v = hf[segment['ds']+'/'+segment['subject']+segment['segm']]
+           
+            for i in range(0, v[segment['type']].shape[0]/mini_batch_size):
+                ims = np.asarray([imresize(im, (224,224)) for im in v[segment['type']][(i)*mini_batch_size:(i+1)*mini_batch_size]], dtype=np.uint8)
+                if not with_labels:
+                    batches.append(ims)
+                else:
+                    batches.append((ims, v['aus'][(i)*mini_batch_size:(i+1)*mini_batch_size]))
+        return batches
 
     def n_samples_fold(self, fold):
         n = 0
         with h5py.File(self.path+'bp4d.h5', 'r') as hf:
             for subject in self._get_subject_list_3fold(fold):
-                for k,v in hf['train/pose6/'].items():
+                for k,v in hf['train/pose6/'+'subject_'+subject].items():
                     n += v['faces'].shape[0]
-        return n
+        return n*self.n_patches
 
 class GeneratorFera(Generator):
     def __init__(self, path, db, type):
@@ -416,10 +417,20 @@ class GeneratorMLMNIST():
 
 if __name__ == '__main__':
     path_server = '/data/data1/datasets/fera2017/'
-    dtg = GeneratorBP4D(path_server)
+    
+    dtg = GeneratorBP4D(path_server, type='all')
+    for i, (ims,labels) in enumerate(dtg.generate(fold=2, batch_size=32, with_labels=True)):
+        print('{}:{}'.format(i, ims.shape))
+        if i > 100: break
 
-    for i, (faces, mouth, leye, reye, nose) in enumerate(dtg.generate(type=['faces', 'mouth', 'nose', 'leye'], batch_size=32)):
-        print faces.shape
-        print mouth.shape
-
-        if i > 5: break 
+        
+    dtg = GeneratorBP4D(path_server, type=['faces', 'mouth', 'nose'])
+    print dtg.n_samples_fold(1)
+    print dtg.n_samples_fold(2)
+    print dtg.n_samples_fold(3)
+    
+    for i, (ims,labels) in enumerate(dtg.generate(fold=3, batch_size=8, with_labels=True)):
+        if i > 100: break
+    
+        
+    
