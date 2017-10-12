@@ -19,6 +19,8 @@ import random
 import h5py
 import os.path
 import matplotlib.pyplot as plt
+from imgaug import augmenters as iaa
+import imgaug as ia
 
 class ReaderOuluCasia():
     def __init__(self, path):
@@ -398,18 +400,16 @@ class ReaderFera2017():
                         segment_v.create_dataset('faces_patched', data=np.concatenate(patches))
 
     def prepare_patches(self, partition, pose, out_fname, update=False):
-        markers_ = {
+        markers = {
             'leye': np.concatenate((np.arange(17,22), np.arange(36,42))),
             'reye': np.concatenate((np.arange(42,48), np.arange(22,27))),
             'nose': np.arange(27,36),
-            'mouth': np.arange(48,68)
-        }
-        
-        markers = {
+            'mouth': np.arange(48,68),
             'beye': np.asarray([21,22,42,28,39]),
             'lmouth': np.asarray([36,39,31,48]),
             'rmouth': np.asarray([42,45,35,54])
         }
+
         print 'Prepare patches for database {}'.format(out_fname)
         with h5py.File(self.path+out_fname, 'r+') as hf:
             for subject_k,subject_v in hf[partition+'/'+pose+'/'].items():
@@ -436,7 +436,81 @@ class ReaderFera2017():
                         else:
                             segment_v.create_dataset(k, data=np.asarray(patches[k]))
 
-    
+    def augment(self, n_augm, out_fname, update=False):
+        # Define augmenter
+        sometimes = lambda aug: iaa.Sometimes(0.5, aug)
+        seq = iaa.Sequential(
+            [
+                # apply the following augmenters to most images
+                iaa.Fliplr(0.5), # horizontally flip 50% of all images
+                #iaa.Flipud(0.2), # vertically flip 20% of all images
+                sometimes(iaa.Crop(percent=(0, 0.1))), # crop images by 0-10% of their height/width
+                sometimes(iaa.Affine(
+                    scale={"x": (0.8, 1.2), "y": (0.8, 1.2)}, # scale images to 80-120% of their size, individually per axis
+                    translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)}, # translate by -20 to +20 percent (per axis)
+                    rotate=(-45, 45), # rotate by -45 to +45 degrees
+                    shear=(-16, 16), # shear by -16 to +16 degrees
+                    order=[0, 1], # use nearest neighbour or bilinear interpolation (fast)
+                    cval=(0, 255), # if mode is constant, use a cval between 0 and 255
+                    mode=ia.ALL # use any of scikit-image's warping modes (see 2nd image from the top for examples)
+                )),
+                # execute 0 to 5 of the following (less important) augmenters per image
+                # don't execute all of them, as that would often be way too strong
+                iaa.SomeOf((0, 5),
+                    [
+                        sometimes(iaa.Superpixels(p_replace=(0, 1.0), n_segments=(20, 200))), # convert images into their superpixel representation
+                        iaa.OneOf([
+                            iaa.GaussianBlur((0, 3.0)), # blur images with a sigma between 0 and 3.0
+                            iaa.AverageBlur(k=(2, 7)), # blur image using local means with kernel sizes between 2 and 7
+                            iaa.MedianBlur(k=(3, 11)), # blur image using local medians with kernel sizes between 2 and 7
+                        ]),
+                        iaa.Sharpen(alpha=(0, 1.0), lightness=(0.75, 1.5)), # sharpen images
+                        iaa.Emboss(alpha=(0, 1.0), strength=(0, 2.0)), # emboss images
+                        # search either for all edges or for directed edges
+                        sometimes(iaa.OneOf([
+                            iaa.EdgeDetect(alpha=(0, 0.7)),
+                            iaa.DirectedEdgeDetect(alpha=(0, 0.7), direction=(0.0, 1.0)),
+                        ])),
+                        iaa.AdditiveGaussianNoise(loc=0, scale=(0.0, 0.05*255), per_channel=0.5), # add gaussian noise to images
+                        iaa.OneOf([
+                            iaa.Dropout((0.01, 0.1), per_channel=0.5), # randomly remove up to 10% of the pixels
+                            iaa.CoarseDropout((0.03, 0.15), size_percent=(0.02, 0.05), per_channel=0.2),
+                        ]),
+                        iaa.Invert(0.05, per_channel=True), # invert color channels
+                        iaa.Add((-10, 10), per_channel=0.5), # change brightness of images (by -10 to 10 of original value)
+                        iaa.Multiply((0.5, 1.5), per_channel=0.5), # change brightness of images (50-150% of original value)
+                        iaa.ContrastNormalization((0.5, 2.0), per_channel=0.5), # improve or worsen the contrast
+                        iaa.Grayscale(alpha=(0.0, 1.0)),
+                        sometimes(iaa.ElasticTransformation(alpha=(0.5, 3.5), sigma=0.25)), # move pixels locally around (with random strengths)
+                        sometimes(iaa.PiecewiseAffine(scale=(0.01, 0.05))) # sometimes move parts of the image around
+                    ],
+                    random_order=True
+                )
+            ],
+            random_order=True
+        )
+
+        print 'Augment content for database {}'.format(out_fname)
+        with h5py.File(self.path+out_fname, 'r+') as hf:
+            for subject_k,subject_v in hf['train/pose6/'].items():
+                for segment_k,segment_v in subject_v.items():
+                    print '{} of {}'.format(segment_k, subject_k)
+                    for tp in ['faces', 'leye', 'reye', 'beye', 'nose', 'mouth', 'lmouth', 'rmouth']:
+                        # Now we have the original segment
+                        images = np.ndarray.tolist(segment_v[tp])
+
+                        print len(images)
+
+                        # Augment
+                        augm_images = seq.augment_images([images] * n_augm)
+
+                        print len(augm_images)
+
+                        # Save in another segment together with the other metadata
+                        # Each augmentation can go to a segment_0_x
+
+
+
     def _accumulate_data(self, dt, ims, geoms, occ, int, subjects, tasks, poses):
         dt['ims'].append(ims)
         dt['geoms'].append(geoms)
