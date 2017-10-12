@@ -1,4 +1,5 @@
-s__author__ = 'cipriancorneanu'
+
+__author__ = 'cipriancorneanu'
 
 import re
 from facepp.processor.aligner import align
@@ -396,14 +397,19 @@ class ReaderFera2017():
                         '''
                         segment_v.create_dataset('faces_patched', data=np.concatenate(patches))
 
-    def prepare_patches(self, partition, pose, out_fname):
-        markers = {
+    def prepare_patches(self, partition, pose, out_fname, update=False):
+        markers_ = {
             'leye': np.concatenate((np.arange(17,22), np.arange(36,42))),
             'reye': np.concatenate((np.arange(42,48), np.arange(22,27))),
             'nose': np.arange(27,36),
-            'mouth': np.arange(48,68),
-            }
-
+            'mouth': np.arange(48,68)
+        }
+        
+        markers = {
+            'beye': np.asarray([21,22,42,28,39]),
+            'lmouth': np.asarray([36,39,31,48]),
+            'rmouth': np.asarray([42,45,35,54])
+        }
         print 'Prepare patches for database {}'.format(out_fname)
         with h5py.File(self.path+out_fname, 'r+') as hf:
             for subject_k,subject_v in hf[partition+'/'+pose+'/'].items():
@@ -411,7 +417,7 @@ class ReaderFera2017():
                     print '{} of dataset {}'.format(segment_k, partition+'/'+pose+'/'+subject_k)
                     faces, lms = segment_v['faces'], segment_v['lms']
                                 
-                    patches = {'leye':[], 'reye':[], 'nose':[], 'mouth':[]}
+                    patches = {'leye':[], 'reye':[], 'beye':[], 'nose':[], 'mouth':[], 'lmouth':[], 'rmouth':[]}
                     for i, (face, lm) in enumerate(zip(faces, lms)):
                         # Extract patches
                         for k,v in markers.items():
@@ -422,36 +428,14 @@ class ReaderFera2017():
                                 patches[k].append(patch)
 
                     for k,v in markers.items():
-                        segment_v.create_dataset(k, data=np.asarray(patches[k]))
-
-    '''
-    def prepare_patches(self, partition, pose, out_fname):
-        markers = {
-            'leye': np.concatenate((np.arange(17,22), np.arange(36,42))),
-            'reye': np.concatenate((np.arange(42,48), np.arange(22,27))),
-            'nose': np.arange(27,36),
-            'mouth': np.arange(48,68),
-            }
-
-        print 'Prepare patches for database {}'.format(out_fname)
-        with h5py.File(self.path+out_fname, 'r+') as hf:
-            for segment_k,segment_v in hf[partition+'/'+pose+'/'].items():
-                print '{} of dataset {}'.format(segment_k, partition+'/'+pose+'/')
-                faces, lms = segment_v['faces'], segment_v['lms']
-
-                patches = {'leye':[], 'reye':[], 'nose':[], 'mouth':[]}
-                for i, (face, lm) in enumerate(zip(faces, lms)):
-                    # Extract patches
-                    for k,v in markers.items():
-                        if np.sum(lm)==0:
-                            patch = np.zeros((56, 56, 3))
+                        '''print partition+'/'+pose+'/'+subject_k+'/'+segment_k+'/'+k'''
+                        
+                        if partition+'/'+pose+'/'+subject_k+'/'+segment_k+'/'+k in hf:
+                            data = segment_v[k]
+                            data[...] = np.asarray(patches[k])
                         else:
-                            patch = extract(face, square_bbox(lm[v]), extension=1.3, size=56)[0]
-                        patches[k].append(patch)
+                            segment_v.create_dataset(k, data=np.asarray(patches[k]))
 
-                for k,v in markers.items():
-                    segment_v.create_dataset(k, data=np.asarray(patches[k]))
-    '''
     
     def _accumulate_data(self, dt, ims, geoms, occ, int, subjects, tasks, poses):
         dt['ims'].append(ims)
