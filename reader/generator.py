@@ -209,7 +209,6 @@ class GeneratorBP4D():
 
         while True:
             for s in segments:
-                print s
                 for b in self._get_batches(s, batch_size, with_labels):
                     yield b
 
