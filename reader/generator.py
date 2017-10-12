@@ -195,20 +195,28 @@ class Generator():
 
 
 class GeneratorBP4D():
-    def __init__(self, path, type):
+    def __init__(self, path, type, n_folds):
         self.path = path
         self.type = type
+
         if type == 'all':
             self.n_patches = 5
         else:
             self.n_patches = len(type)
+            
+        if n_folds == 3:
+            self.get_subjects = self._get_subject_list_3fold
+        elif n_folds == 10:
+            self.get_subjects = self._get_subject_list_10fold
 
-    def generate(self, fold, batch_size=32, with_labels=False):
-        segments = self._get_segments(self._get_subject_list_3fold(fold))
+    def generate(self, fold, batch_size=32, with_labels=False, verbose=True):
+        segments = self._get_segments(self.get_subjects(fold))
         np.random.shuffle(segments)
 
         while True:
             for s in segments:
+                if verbose == True:
+                    print(s)
                 for b in self._get_batches(s, batch_size, with_labels):
                     yield b
 
@@ -220,7 +228,28 @@ class GeneratorBP4D():
         elif fold==3:
             return ['M004', 'F002', 'F009', 'F020', 'F007', 'F023', 'M012', 'M001', 'F021', 'F011', 'F013', 'F005', 'F008']
 
-
+    def _get_subject_list_10fold(self, fold):
+        if fold==1:
+            return ['M016', 'F015', 'M005', 'F010']
+        elif fold==2:
+            return ['M009', 'F016', 'F001', 'M008']
+        elif fold==3:
+            return ['M013', 'M015', 'F017', 'F014']
+        elif fold==4:
+            return ['M010', 'F019','M011', 'F022']
+        elif fold==5:
+            return ['M007', 'M017', 'F003', 'M003']
+        elif fold==6:
+            return ['F004', 'M018', 'M006', 'F012']
+        elif fold==7:
+            return ['M002', 'M014', 'F018', 'F006']
+        elif fold==8:
+            return ['M004', 'F002', 'F009', 'F020']
+        elif fold==9:
+            return ['F007', 'F023', 'M012', 'M001']
+        elif fold==10:
+            return ['F021', 'F011', 'F013', 'F005', 'F008']
+                                    
     def _get_segments(self, subject_list):
         databases = [{'fname':'bp4d.h5', 'datasets':['/train/pose6']}]
         if self.type == 'all':
@@ -238,7 +267,6 @@ class GeneratorBP4D():
                             for dt_type in data_types:
                                 s = {'db':db['fname'], 'ds':ds, 'subject':'/subject_'+subject, 'segm':'/'+segment_k, 'type':dt_type}
                                 segments.append(s)
-
         return segments
 
     def _get_batches(self, segment, mini_batch_size, with_labels=False):
@@ -257,7 +285,7 @@ class GeneratorBP4D():
     def n_samples_fold(self, fold):
         n = 0
         with h5py.File(self.path+'bp4d.h5', 'r') as hf:
-            for subject in self._get_subject_list_3fold(fold):
+            for subject in self.get_subjects(fold):
                 for k,v in hf['train/pose6/'+'subject_'+subject].items():
                     n += v['faces'].shape[0]
         return n*self.n_patches
@@ -417,19 +445,23 @@ class GeneratorMLMNIST():
 if __name__ == '__main__':
     path_server = '/data/data1/datasets/fera2017/'
     
-    dtg = GeneratorBP4D(path_server, type='all')
-    for i, (ims,labels) in enumerate(dtg.generate(fold=2, batch_size=32, with_labels=True)):
-        print('{}:{}'.format(i, ims.shape))
-        if i > 100: break
-
-        
-    dtg = GeneratorBP4D(path_server, type=['faces', 'mouth', 'nose'])
+    dtg = GeneratorBP4D(path_server, type='all', n_folds=3)
     print dtg.n_samples_fold(1)
     print dtg.n_samples_fold(2)
     print dtg.n_samples_fold(3)
     
-    for i, (ims,labels) in enumerate(dtg.generate(fold=3, batch_size=8, with_labels=True)):
-        if i > 100: break
+    '''
+    for i, (ims,labels) in enumerate(dtg.generate(fold=2, batch_size=32, with_labels=True, verbose=True)):
+        pass
+    '''
+        
+    dtg = GeneratorBP4D(path_server, type=['faces', 'mouth', 'nose'], n_folds=10)
+    print dtg.n_samples_fold(1)
+    print dtg.n_samples_fold(2)
+    print dtg.n_samples_fold(3)
+    
+    for i, (ims,labels) in enumerate(dtg.generate(fold=3, batch_size=8, with_labels=True, verbose=True)):
+        pass
     
         
     
