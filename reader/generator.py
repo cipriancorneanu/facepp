@@ -200,7 +200,7 @@ class GeneratorBP4D():
         self.type = type
 
         if type == 'all':
-            self.n_patches = 5
+            self.n_patches = 8
         else:
             self.n_patches = len(type)
             
@@ -209,9 +209,9 @@ class GeneratorBP4D():
         elif n_folds == 10:
             self.get_subjects = self._get_subject_list_10fold
 
-    def generate(self, fold, batch_size=32, with_labels=False, verbose=True):
+    def generate(self, fold, batch_size=32, with_labels=False, shuffle=True, verbose=True):
         segments = self._get_segments(self.get_subjects(fold))
-        np.random.shuffle(segments)
+        if shuffle: np.random.shuffle(segments)
 
         while True:
             for s in segments:
@@ -253,7 +253,7 @@ class GeneratorBP4D():
     def _get_segments(self, subject_list):
         databases = [{'fname':'bp4d.h5', 'datasets':['/train/pose6']}]
         if self.type == 'all':
-            data_types = ['faces', 'leye', 'reye', 'mouth', 'nose']
+            data_types = ['faces', 'leye', 'reye', 'beye', 'mouth', 'nose', 'lmouth', 'rmouth']
         else:
             data_types = self.type
 
@@ -455,13 +455,16 @@ if __name__ == '__main__':
         pass
     '''
         
-    dtg = GeneratorBP4D(path_server, type=['faces', 'mouth', 'nose'], n_folds=10)
+    dtg = GeneratorBP4D(path_server, type=['faces', 'reye', 'leye', 'beye', 'nose', 'mouth', 'lmouth', 'rmouth'], n_folds=10)
     print dtg.n_samples_fold(1)
     print dtg.n_samples_fold(2)
     print dtg.n_samples_fold(3)
     
-    for i, (ims,labels) in enumerate(dtg.generate(fold=3, batch_size=8, with_labels=True, verbose=True)):
-        pass
-    
+    for i, (ims,labels) in enumerate(dtg.generate(fold=3, batch_size=256, with_labels=True, shuffle=False, verbose=True)):
+        cPickle.dump({'ims':np.squeeze(ims[0,...])}, open(path_server+'samples'+str(i)+'.pkl', 'wb'), cPickle.HIGHEST_PROTOCOL)
+        print i 
+        if i>10: break
+
+        
         
     

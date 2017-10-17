@@ -19,8 +19,8 @@ import random
 import h5py
 import os.path
 import matplotlib.pyplot as plt
-from imgaug import augmenters as iaa
-import imgaug as ia
+from imgaug.imgaug import augmenters as iaa
+import imgaug.imgaug as ia
 
 class ReaderOuluCasia():
     def __init__(self, path):
@@ -413,12 +413,18 @@ class ReaderFera2017():
         )
 
         print 'Augment content for database {}'.format(out_fname)
+        print out_fname
+        print self.path
+        
+        
         with h5py.File(self.path+out_fname, 'r+') as hf:
             for subject_k,subject_v in hf['train/pose6/'].items():
                 for segment_k,segment_v in subject_v.items():
                     print '{} of {}'.format(segment_k, subject_k)
                     for tp in ['faces', 'leye', 'reye', 'beye', 'nose', 'mouth', 'lmouth', 'rmouth']:
                         # Now we have the original segment
+                        ''' TODO: we are here to continue'''
+                        
                         images = np.ndarray.tolist(segment_v[tp])
 
                         print len(images)
