@@ -411,33 +411,35 @@ class ReaderFera2017():
             ],
             random_order=True
         )
-
-        print 'Augment content for database {}'.format(out_fname)
-        print out_fname
-        print self.path
-        
         
         with h5py.File(self.path+out_fname, 'r+') as hf:
             for subject_k,subject_v in hf['train/pose6/'].items():
                 for segment_k,segment_v in subject_v.items():
                     print '{} of {}'.format(segment_k, subject_k)
                     for tp in ['faces', 'leye', 'reye', 'beye', 'nose', 'mouth', 'lmouth', 'rmouth']:
-                        # Now we have the original segment
-                        ''' TODO: we are here to continue'''
-                        
-                        images = np.ndarray.tolist(segment_v[tp])
+                        print '{}/{}/{}'.format(subject_k, segment_k, tp)
 
-                        print len(images)
+                        images = np.asarray(segment_v[tp])
+                        labels = segment_v['aus']
 
-                        # Augment
-                        augm_images = seq.augment_images([images] * n_augm)
+                        idxs = self.balance(labels)
+                        images, labels = images[idxs], labels[idxs]
 
-                        print len(augm_images)
+                        for i in range(n_augm):
+                            augm_images = seq.augment_images(images) #might be we need list
+                            segment = hf.create_group('train/pose6/'+'subject_'+subject_k+'/segment_'+segment_k+str(n_augm))
+                            segment.create_dataset('tp', data=augm_images)
 
-                        # Save in another segment together with the other metadata
-                        # Each augmentation can go to a segment_0_x
+    def balance(self, batch):
+        b_sz, n = batch.shape
+        p = [0.21, 0.17, 0.20, 0.46, 0.55, 0.59, 0.56, 0.46, 0.17, 0.34, 0.16, 0.14]
 
+        pmark = np.asarray([ x/y if y>0 else 1 for x,y in zip(np.sum(batch * np.tile(p, (b_sz, 1)), axis=1),
+                                                             [len(np.where(x==1)[0]) for x in batch])])
+        sort_pmark = np.argsort(pmark)
 
+        idxs = np.tile(sort_pmark[:b_sz/2], 2)
+        return idxs
 
     def _accumulate_data(self, dt, ims, geoms, occ, int, subjects, tasks, poses):
         dt['ims'].append(ims)
