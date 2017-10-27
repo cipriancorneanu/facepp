@@ -1,4 +1,3 @@
-
 __author__ = 'cipriancorneanu'
 
 import re
@@ -411,25 +410,38 @@ class ReaderFera2017():
             ],
             random_order=True
         )
-        
+                
         with h5py.File(self.path+out_fname, 'r+') as hf:
             for subject_k,subject_v in hf['train/pose6/'].items():
-                for segment_k,segment_v in subject_v.items():
-                    print '{} of {}'.format(segment_k, subject_k)
-                    for tp in ['faces', 'leye', 'reye', 'beye', 'nose', 'mouth', 'lmouth', 'rmouth']:
-                        print '{}/{}/{}'.format(subject_k, segment_k, tp)
-
-                        images = np.asarray(segment_v[tp])
-                        labels = segment_v['aus']
-
+                if subject_k.split('_')[1] in ['F017', 'F018', 'F019','F020']:
+                    for segment_k,segment_v in subject_v.items():
+                        labels = np.asarray(segment_v['aus'])
                         idxs = self.balance(labels)
-                        images, labels = images[idxs], labels[idxs]
+                        labels = labels[idxs]
 
                         for i in range(n_augm):
-                            augm_images = seq.augment_images(images) #might be we need list
-                            segment = hf.create_group('train/pose6/'+'subject_'+subject_k+'/segment_'+segment_k+str(n_augm))
-                            segment.create_dataset('tp', data=augm_images)
+                            node  = 'train/pose6/'+subject_k+'/'+segment_k+'_'+str(i)
+                            _ = hf.create_group(node)
 
+                        for tp in ['faces', 'leye', 'reye', 'beye', 'nose', 'mouth', 'lmouth', 'rmouth']:
+                            print '{}/{}/{}'.format(subject_k, segment_k, tp)
+                            images = np.asarray(segment_v[tp])
+                            if np.max(idxs)<images.shape[0]:
+                                images = images[idxs]
+                            else:
+                                print ('-------An index error-------')
+                                labels = np.asarray(segment_v['aus'])
+                                
+                            for i in range(n_augm):
+                                augm_images = seq.augment_images(images)
+                                node  = 'train/pose6/'+subject_k+'/'+segment_k+'_'+str(i)
+                                print '     Writing node {} with data of shape {}'.format(node, augm_images.shape)
+                                segment = hf[node]
+                                
+                                segment.create_dataset(tp, data=augm_images)
+                                if tp=='faces':
+                                    segment.create_dataset('aus', data=labels)
+                                
     def balance(self, batch):
         b_sz, n = batch.shape
         p = [0.21, 0.17, 0.20, 0.46, 0.55, 0.59, 0.56, 0.46, 0.17, 0.34, 0.16, 0.14]
@@ -1046,5 +1058,5 @@ def extract_patches(face, geom):
         return patches
 
 if __name__ == '__main__':
-    reader = ReaderFera2017('/Users/cipriancorneanu/Research/data/disfa/')
-    reader.prepare(partition='train', pose='pose6', out_fname='disfa.h5')
+    reader = ReaderFera2017('/data/data1/datasets/fera2017/')
+    reader.augment(n_augm=4, out_fname='bp4d_augm.h5')

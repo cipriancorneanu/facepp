@@ -209,8 +209,8 @@ class GeneratorBP4D():
         elif n_folds == 10:
             self.get_subjects = self._get_subject_list_10fold
 
-    def generate(self, fold, batch_size=32, with_labels=False, shuffle=True, verbose=True):
-        segments = self._get_segments(self.get_subjects(fold))
+    def generate(self, fold, batch_size=32, with_labels=False, augment=False, shuffle=True, verbose=True):
+        segments = self._get_segments(self.get_subjects(fold), augment)
         if shuffle: np.random.shuffle(segments)
 
         while True:
@@ -250,8 +250,12 @@ class GeneratorBP4D():
         elif fold==10:
             return ['F021', 'F011', 'F013', 'F005', 'F008']
                                     
-    def _get_segments(self, subject_list):
-        databases = [{'fname':'bp4d.h5', 'datasets':['/train/pose6']}]
+    def _get_segments(self, subject_list, augm):
+        if augm:
+            databases = [{'fname':'bp4d_augm.h5', 'datasets':['/train/pose6']}]
+        else:
+            databases = [{'fname':'bp4d.h5', 'datasets': ['/train/pose6']}]
+
         if self.type == 'all':
             data_types = ['faces', 'leye', 'reye', 'beye', 'mouth', 'nose', 'lmouth', 'rmouth']
         else:
