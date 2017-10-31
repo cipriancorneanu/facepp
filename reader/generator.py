@@ -23,6 +23,20 @@ class GeneratorPreds():
                                     dt['pred'][(i)*batch_size:(i+1)*batch_size]))
                 yield tuple(dvdv)
 
+class GeneratorPredsLC():
+    def __init__(self, path):
+        self.path = path
+
+    def generate(self, partition, type, batch_size=32):
+        with h5py.File(self.path+'/label_coding_preds.h5', 'r') as hf:
+            data = [hf[partition+'/'+t] for t in type]
+            for i in range(0, data[0]['gt'].shape[0]/batch_size):
+                dvdv = []
+                for dt in data:
+                    dvdv.append((dt['gt'][(i)*batch_size:(i+1)*batch_size],
+                                    dt['pred'][(i)*batch_size:(i+1)*batch_size]))
+                yield tuple(dvdv)
+
 class Generator():
     def __init__(self, path, db, type):
         self.path = path
@@ -447,28 +461,10 @@ class GeneratorMLMNIST():
             return np.rollaxis(self.x_train, 3, 1)
 
 if __name__ == '__main__':
+    path = '/Users/cipriancorneanu/Research/data/'
     path_server = '/data/data1/datasets/fera2017/'
     
-    dtg = GeneratorBP4D(path_server, type='all', n_folds=3)
-    print dtg.n_samples_fold(1)
-    print dtg.n_samples_fold(2)
-    print dtg.n_samples_fold(3)
-    
-    '''
-    for i, (ims,labels) in enumerate(dtg.generate(fold=2, batch_size=32, with_labels=True, verbose=True)):
-        pass
-    '''
-        
-    dtg = GeneratorBP4D(path_server, type=['faces', 'reye', 'leye', 'beye', 'nose', 'mouth', 'lmouth', 'rmouth'], n_folds=10)
-    print dtg.n_samples_fold(1)
-    print dtg.n_samples_fold(2)
-    print dtg.n_samples_fold(3)
-    
-    for i, (ims,labels) in enumerate(dtg.generate(fold=3, batch_size=256, with_labels=True, shuffle=False, verbose=True)):
-        cPickle.dump({'ims':np.squeeze(ims[0,...])}, open(path_server+'samples'+str(i)+'.pkl', 'wb'), cPickle.HIGHEST_PROTOCOL)
-        print i 
-        if i>10: break
+    dtg = GeneratorPredsLC(path)
 
-        
-        
-    
+    for i, ((f_gt, f_pred), (m_gt, m_pred)) in enumerate(dtg.generate(partition='test', type=['faces', 'mouth'])):
+        print '{}: {}'.format(i, f_gt.shape)
