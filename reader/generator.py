@@ -23,6 +23,21 @@ class GeneratorPreds():
                                     dt['pred'][(i)*batch_size:(i+1)*batch_size]))
                 yield tuple(dvdv)
 
+class GeneratorPredsLC():
+    def __init__(self, path):
+        self.path = path
+
+    def generate(self, partition, type, batch_size=32):
+        with h5py.File(self.path+'/label_coding_preds.h5', 'r') as hf:
+            data = [hf[partition+'/'+t] for t in type]
+            for i in range(0, data[0]['gt'].shape[0]/batch_size):
+                dvdv = []
+                for dt in data:
+                    dvdv.append((dt['gt'][(i)*batch_size:(i+1)*batch_size],
+                                 dt['pred'][(i)*batch_size:(i+1)*batch_size]))
+                yield tuple(dvdv)
+
+
 class Generator():
     def __init__(self, path, db, type):
         self.path = path
