@@ -54,21 +54,3 @@ def read_csv(fname):
     with open(fname, 'rb') as csvfile:
         spamreader = csv.reader(csvfile, delimiter=' ', quotechar='|')
         return [[int(x) for x in row[0].split(',')] for row in spamreader ]
-
-if __name__ == '__main__':
-    #read_csv('/Users/cipriancorneanu/Research/data/fera2017/train/occ/FERA17_TR_F003_T1.csv')
-    '''
-    path = '/Users/cipriancorneanu/Research/data/fake/aligned_faces/femo_aligned_faces_12_9.pkl'
-
-    import cPickle
-    import matplotlib.pyplot as plt
-
-    dt = cPickle.load(open(path, 'rb'))
-
-    for i, (im, geom) in enumerate(zip(dt['faces'], dt['geoms'])):
-        if i%20 == 0:
-            plt.imshow(im)
-            plt.scatter(geom[:,0], geom[:,1])
-            plt.savefig('/Users/cipriancorneanu/Research/data/fake/' + str(i) + '.png')
-            plt.clf()
-    '''
