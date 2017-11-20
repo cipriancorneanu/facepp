@@ -34,9 +34,9 @@ class GeneratorPredsLC():
                 dvdv = []
                 for dt in data:
                     dvdv.append((dt['gt'][(i)*batch_size:(i+1)*batch_size],
-                                    dt['pred'][(i)*batch_size:(i+1)*batch_size]))
+                                 dt['pred'][(i)*batch_size:(i+1)*batch_size]))
                 yield tuple(dvdv)
-
+                
 class Generator():
     def __init__(self, path, db, type):
         self.path = path
@@ -233,7 +233,8 @@ class GeneratorBP4D():
                     print s
                 for b in self._get_batches(s, batch_size, patch_wise, with_labels):
                     yield b
-
+                gc.collect()
+                    
     def _get_subject_list_3fold(self, fold):
         if fold==1:
             return ['M016', 'F015', 'M005', 'F010', 'M009', 'F016', 'F001', 'M008', 'M013', 'M015', 'F017', 'F014', 'M010', 'F019']
@@ -298,6 +299,7 @@ class GeneratorBP4D():
         batches = []
         with h5py.File(self.path+segment['db'], 'r') as hf:
             v = hf[segment['ds']+'/'+segment['subject']+segment['segm']]
+
             if patch_wise:
                 for i in range(0, v[segment['type']].shape[0]/mini_batch_size):
                     ims = np.asarray([imresize(im, (224,224)) for im in v[segment['type']][(i)*mini_batch_size:(i+1)*mini_batch_size]], dtype=np.uint8)
@@ -319,13 +321,16 @@ class GeneratorBP4D():
                         batches.append(tuple(accumulate_batch))
         return batches
 
-    def n_samples_fold(self, fold):
+    def n_samples_fold(self, fold, augm):
         n = 0
         with h5py.File(self.path+'bp4d.h5', 'r') as hf:
             for subject in self.get_subjects(fold):
                 for k,v in hf['train/pose6/'+'subject_'+subject].items():
                     n += v['faces'].shape[0]
-        return n*self.n_patches
+        if augm:
+            return 4*n*self.n_patches
+        else:
+            return n*self.n_patches
 
 class GeneratorFera(Generator):
     def __init__(self, path, db, type):
