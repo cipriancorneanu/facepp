@@ -223,15 +223,15 @@ class GeneratorBP4D():
         elif n_folds == 10:
             self.get_subjects = self._get_subject_list_10fold
 
-    def generate(self, fold, batch_size=32, with_labels=False, augment=False, shuffle=True, verbose=True):
-        segments = self._get_segments(self.get_subjects(fold), augment)
+    def generate(self, fold, batch_size=32, with_labels=False, augment=False, shuffle=True, patch_wise=False, verbose=True):
+        segments = self._get_segments(self.get_subjects(fold), augment, patch_wise)
         if shuffle: np.random.shuffle(segments)
 
         while True:
             for s in segments:
                 if verbose == True:
-                    print(s)
-                for b in self._get_batches(s, batch_size, with_labels):
+                    print s
+                for b in self._get_batches(s, batch_size, patch_wise, with_labels):
                     yield b
 
     def _get_subject_list_3fold(self, fold):
@@ -263,8 +263,9 @@ class GeneratorBP4D():
             return ['F007', 'F023', 'M012', 'M001']
         elif fold==10:
             return ['F021', 'F011', 'F013', 'F005', 'F008']
-                                    
-    def _get_segments(self, subject_list, augm):
+
+
+    def _get_segments(self, subject_list, augm, patch_wise=True):
         if augm:
             databases = [{'fname':'bp4d_augm.h5', 'datasets':['/train/pose6']}]
         else:
@@ -281,23 +282,41 @@ class GeneratorBP4D():
                 for ds in db['datasets']:
                     for subject in subject_list:
                         for segment_k, segment_v in hf[ds+'/subject_'+subject].items():
-                            np.random.shuffle(data_types)
-                            for dt_type in data_types:
-                                s = {'db':db['fname'], 'ds':ds, 'subject':'/subject_'+subject, 'segm':'/'+segment_k, 'type':dt_type}
+                            if patch_wise:
+                                np.random.shuffle(data_types)
+                                for dt_type in data_types:
+                                    s = {'db':db['fname'], 'ds':ds, 'subject':'/subject_'+subject, 'segm':'/'+segment_k, 'type':dt_type}
+                                    segments.append(s)
+                            else:
+                                s = {'db':db['fname'], 'ds':ds, 'subject':'/subject_'+subject, 'segm':'/'+segment_k}
                                 segments.append(s)
         return segments
 
-    def _get_batches(self, segment, mini_batch_size, with_labels=False):
+    def _get_batches(self, segment, mini_batch_size, patch_wise=True, with_labels=False):
+        data_types = ['faces', 'leye', 'reye', 'beye', 'mouth', 'nose', 'lmouth', 'rmouth']
+
         batches = []
         with h5py.File(self.path+segment['db'], 'r') as hf:
             v = hf[segment['ds']+'/'+segment['subject']+segment['segm']]
-           
-            for i in range(0, v[segment['type']].shape[0]/mini_batch_size):
-                ims = np.asarray([imresize(im, (224,224)) for im in v[segment['type']][(i)*mini_batch_size:(i+1)*mini_batch_size]], dtype=np.uint8)
-                if not with_labels:
-                    batches.append(ims)
-                else:
-                    batches.append((ims, v['aus'][(i)*mini_batch_size:(i+1)*mini_batch_size]))
+            if patch_wise:
+                for i in range(0, v[segment['type']].shape[0]/mini_batch_size):
+                    ims = np.asarray([imresize(im, (224,224)) for im in v[segment['type']][(i)*mini_batch_size:(i+1)*mini_batch_size]], dtype=np.uint8)
+                    if not with_labels:
+                        batches.append(ims)
+                    else:
+                        batches.append((ims, v['aus'][(i)*mini_batch_size:(i+1)*mini_batch_size]))
+            else:
+                for i in range(0, v['faces'].shape[0]/mini_batch_size):
+                    accumulate_batch = []
+                    for type in data_types:
+                        ims = np.asarray([imresize(im, (224,224)) for im in v[type][(i)*mini_batch_size:(i+1)*mini_batch_size]], dtype=np.uint8)
+
+                        if not with_labels:
+                            accumulate_batch.append(ims)
+                        else:
+                            accumulate_batch.append((ims, v['aus'][(i)*mini_batch_size:(i+1)*mini_batch_size]))
+
+                        batches.append(tuple(accumulate_batch))
         return batches
 
     def n_samples_fold(self, fold):

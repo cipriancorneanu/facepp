@@ -64,25 +64,31 @@ def plot_complete_weighted_graph(axis, edge_weights, node_labels):
     pos = nx.circular_layout(G) # positions for all nodes
 
     # draw nodes
-    nx.draw_networkx_nodes(G, pos, nodelist=list(np.arange(n_nodes)), node_color='r', node_size=1200, alpha=0.8, ax=axis)
+    nx.draw_networkx_nodes(G, pos, nodelist=list(np.arange(n_nodes)), node_color='g', node_size=1200, alpha=0.8, ax=axis)
 
     # prepare weighted edges
     edges = [edge for edge in set(itertools.combinations(list(np.arange(n_nodes)),2))]
     weights = [edge_weights[edge] for edge in edges]
-    colors = ['r' if w>0 else 'b' for w in weights]
+    colors = ['g' if w>0 else 'r' for w in weights]
+
+    scale = 10
+    weights = scale*np.abs(weights)
 
     # norm edges weights' for drawing
+    '''
     min_r, max_r = min(weights), max(weights)
-    min_R, max_R = int(10*min_r), int(10*max_r)
+    weights = weights-min_r
+    min_R, max_R = int(min_r), int(10*max_r)
     alpha = (max_R-min_R)/(max_r-min_r)
     weights = [math.floor((x-min_r)*alpha+min_R) for x in weights]
+    '''
 
     # draw edges
     nx.draw_networkx_edges(G, pos, edgelist=edges, width=weights, alpha=0.7, edge_color=colors, ax=axis)
 
     # draw labels
     labels = {i: x for i,x in enumerate(node_labels)}
-    nx.draw_networkx_labels(G, pos, labels, font_size=10, ax=axis)
+    nx.draw_networkx_labels(G, pos, labels, font_size=12, ax=axis)
 
     # turn axis off
     axis.axis('off')

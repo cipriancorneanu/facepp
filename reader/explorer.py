@@ -89,61 +89,70 @@ def label_diversity(labels):
 def proportion_distinct_label_sets(labels):
     pass
 
-'''
+
+
 if __name__ == '__main__':
     fname = 'disfa'
 
-    path = '/Users/cipriancorneanu/Research/data/disfa/'
-    data = cPickle.load(open(path+'disfa_landmarks.pkl', 'rb'))
+    path = '/Users/cipriancorneanu/Research/data/'
+    opath = '/Users/cipriancorneanu/Research/code/afea/'
 
-    explorer = Explorer(
-        data['aus'],
-        ['AU1', 'AU2', 'AU4', 'AU5', 'AU6', 'AU9', 'AU12', 'AU15', 'AU17', 'AU20', 'AU25', 'AU26'],
-        5, '../results_disfa')
+    data = cPickle.load(open(path+'bp4d_labels.pkl', 'rb'))
+
+    aus = np.reshape(data, (-1, 12))
+
+    au_labels = ['AU1', 'AU2', 'AU4', 'AU6', 'AU7', 'AU10', 'AU12', 'AU14', 'AU15', 'AU17', 'AU23', 'AU24']
 
     # Concatenate
-    (aus, geom), slices = concat((data['aus'], data['landmarks']))
+    #aus, slices = concat(data['aus'])
 
     # Filter
+    '''
     aus, slices = filter(aus, slices, lambda x: np.sum(x>0)>1) # Filter AUS
     print aus.shape
+    '''
 
     # Compute exploration
     #occ = explorer.cooccurrence(aus)
-    occ_int = explorer.cooccurrence_intensities(aus)
-    au_distro = explorer.distribution_to_stacked_bar(explorer.distribution(occ_int))
+    occ_int = cooccurrence_intensities(aus)
+    #au_distro = distribution_to_stacked_bar(distribution(occ_int))
     #ims, lms, aus = explorer.qualitative(data['images'], data['landmarks'], data['aus'])
-    corr = explorer.correlation(np.transpose(aus))
+    corr = correlation(np.transpose(aus))
 
     # Plot
+    '''
     fig1, ax1 = plt.subplots()
-    plot_stacked_bar(ax1, au_distro, explorer.au_labels)
+    plot_stacked_bar(ax1, au_distro, au_labels)
     plt.savefig('../results_disfa/au_distribution.png')
+    '''
 
     fig2, ax2 = plt.subplots()
-    plot_heatmap(ax2, corr, labels={'x':explorer.au_labels, 'y':explorer.au_labels})
-    plt.savefig('../results_disfa/au_correlation.png')
+    plot_heatmap(ax2, corr, labels={'x':au_labels, 'y':au_labels})
+    plt.savefig(opath+'/results/au_correlation.eps')
 
     fig3, ax3 = plt.subplots()
-    plot_complete_weighted_graph(ax3, corr, explorer.au_labels,)
-    plt.savefig('../results_disfa/au_correlations_graph.png')
+    plot_complete_weighted_graph(ax3, corr, au_labels,)
+    plt.savefig(opath+'/results/au_correlations_graph.eps')
 
     # Plot distributions
+    '''
     fig4, axarr4 = plt.subplots(1,12)
-    plot_distribution(axarr4, x=[0,1,2,3,4], dt=explorer.distribution(occ_int), labels=explorer.au_labels)
+    plot_distribution(axarr4, x=[0,1,2,3,4], dt=distribution(occ_int), labels=au_labels)
     plt.savefig('../results_disfa/au_intensity_distribution.png')
+    '''
 
-    print 'label cardinality : {}'.format(explorer.label_cardinality(aus))
+    print 'label cardinality : {}'.format(label_cardinality(aus))
 
-    print 'label density : {}'.format(explorer.label_density(aus))
+    print 'label density : {}'.format(label_density(aus, au_labels))
 
     # Plot time series
+    '''
     print ("Plot AU dynamics")
     for i,x in enumerate(data['aus']):
-        t_series = [{'data':col,'label':lab} for col,lab in zip(x.T, explorer.au_labels) if np.sum(col)>0]
+        t_series = [{'data':col,'label':lab} for col,lab in zip(x.T, au_labels) if np.sum(col)>0]
 
         fig3, axarr3 = plt.subplots(len(t_series), 1, figsize=(8,8))
-        plot_t_series(axarr3, t_series, explorer.au_labels)
+        plot_t_series(axarr3, t_series, au_labels)
 
         # Fine-tune figure; make subplots close to each other and hide x ticks for all but bottom plot.
         fig3.subplots_adjust(hspace=0)
@@ -151,4 +160,4 @@ if __name__ == '__main__':
         plt.setp([a.get_yticklabels() for a in fig3.axes], visible=False)
 
         fig3.savefig('../results_disfa/au_temp_dynamics_' + str(i) + '.png')
-'''
+    '''
