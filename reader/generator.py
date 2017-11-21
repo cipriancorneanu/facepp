@@ -233,7 +233,6 @@ class GeneratorBP4D():
                     print s
                 for b in self._get_batches(s, batch_size, patch_wise, with_labels):
                     yield b
-                gc.collect()
                     
     def _get_subject_list_3fold(self, fold):
         if fold==1:
@@ -294,7 +293,7 @@ class GeneratorBP4D():
         return segments
 
     def _get_batches(self, segment, mini_batch_size, patch_wise=True, with_labels=False):
-        data_types = ['faces', 'leye', 'reye', 'beye', 'mouth', 'nose', 'lmouth', 'rmouth']
+        data_types = ['faces', 'leye', 'reye', 'beye', 'nose', 'mouth', 'lmouth', 'rmouth']
 
         batches = []
         with h5py.File(self.path+segment['db'], 'r') as hf:
@@ -309,16 +308,21 @@ class GeneratorBP4D():
                         batches.append((ims, v['aus'][(i)*mini_batch_size:(i+1)*mini_batch_size]))
             else:
                 for i in range(0, v['faces'].shape[0]/mini_batch_size):
-                    accumulate_batch = []
+                    accumulate_batch, valid = [], True
                     for type in data_types:
                         ims = np.asarray([imresize(im, (224,224)) for im in v[type][(i)*mini_batch_size:(i+1)*mini_batch_size]], dtype=np.uint8)
 
+                        if ims.shape[0] < mini_batch_size:
+                            valid = False
+                        
                         if not with_labels:
                             accumulate_batch.append(ims)
                         else:
-                            accumulate_batch.append((ims, v['aus'][(i)*mini_batch_size:(i+1)*mini_batch_size]))
-
+                            accumulate_batch.append((v['aus'][(i)*mini_batch_size:(i+1)*mini_batch_size], ims))
+                    if valid:
                         batches.append(tuple(accumulate_batch))
+                    else:
+                        print 'Ignore this batch. Patch dimensions do not coincide.'
         return batches
 
     def n_samples_fold(self, fold, augm):
