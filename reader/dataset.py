@@ -302,7 +302,8 @@ class ReaderFera2017():
             print 'Total number of samples is {}'.format(ims.shape)
 
             # Shuffle and split
-            idx = np.random.permutation(ims.shape[0])
+            '''idx = np.random.permutation(ims.shape[0])'''
+            idx = np.arange(ims.shape[0])
             slice_length = 256
             indices = [slice_length*x for x in range(1,int(np.ceil(ims.shape[0]/slice_length+1)))]
             splits = np.array_split(idx, indices)
@@ -315,7 +316,7 @@ class ReaderFera2017():
                 
             for i,x in enumerate(splits):
                 segment = file.create_group(partition+'/'+pose+'/'+'subject_'+subject+'/segment_'+str(i))
-                segment.create_dataset('faces', data=ims[x])
+                '''segment.create_dataset('faces', data=ims[x])'''
                 segment.create_dataset('lms', data=lms[x])
                 segment.create_dataset('aus', data=aus[x])
                 segment.create_dataset('subjects', data=subjects[x])
