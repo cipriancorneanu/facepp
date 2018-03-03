@@ -302,7 +302,8 @@ class ReaderFera2017():
             print 'Total number of samples is {}'.format(ims.shape)
 
             # Shuffle and split
-            idx = np.random.permutation(ims.shape[0])
+            '''idx = np.random.permutation(ims.shape[0])'''
+            idx = np.arange(ims.shape[0])
             slice_length = 256
             indices = [slice_length*x for x in range(1,int(np.ceil(ims.shape[0]/slice_length+1)))]
             splits = np.array_split(idx, indices)
