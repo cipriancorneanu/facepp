@@ -315,7 +315,7 @@ class ReaderFera2017():
                 
             for i,x in enumerate(splits):
                 segment = file.create_group(partition+'/'+pose+'/'+'subject_'+subject+'/segment_'+str(i))
-                segment.create_dataset('faces', data=ims[x])
+                '''segment.create_dataset('faces', data=ims[x])'''
                 segment.create_dataset('lms', data=lms[x])
                 segment.create_dataset('aus', data=aus[x])
                 segment.create_dataset('subjects', data=subjects[x])
@@ -347,43 +347,44 @@ class ReaderFera2017():
                         plt.show()
                         '''
                         segment_v.create_dataset('faces_patched', data=np.concatenate(patches))
-
+                        
     def prepare_patches(self, partition, pose, out_fname, update=False):
         markers = {
-            'leye': np.concatenate((np.arange(17,22), np.arange(36,42))),
-            'reye': np.concatenate((np.arange(42,48), np.arange(22,27))),
-            'nose': np.arange(27,36),
-            'mouth': np.arange(48,68),
             'beye': np.asarray([21,22,42,28,39]),
             'lmouth': np.asarray([36,39,31,48]),
             'rmouth': np.asarray([42,45,35,54])
         }
-
+        
         print 'Prepare patches for database {}'.format(out_fname)
         with h5py.File(self.path+out_fname, 'r+') as hf:
-            for subject_k,subject_v in hf[partition+'/'+pose+'/'].items():
-                for segment_k,segment_v in subject_v.items():
-                    print '{} of dataset {}'.format(segment_k, partition+'/'+pose+'/'+subject_k)
-                    faces, lms = segment_v['faces'], segment_v['lms']
+            '''for subject_k,subject_v in hf[partition+'/'+pose+'/'].items():'''
+            for segment_k,segment_v in hf[partition+'/'+pose+'/'].items():
+                print '{} of dataset {}'.format(segment_k, partition+'/'+pose)
+                
+                faces, lms = segment_v['faces'], segment_v['lms']
                                 
-                    patches = {'leye':[], 'reye':[], 'beye':[], 'nose':[], 'mouth':[], 'lmouth':[], 'rmouth':[]}
-                    for i, (face, lm) in enumerate(zip(faces, lms)):
-                        # Extract patches
-                        for k,v in markers.items():
-                            if np.sum(lm)==0:
-                                patch = np.zeros((56, 56, 3))
-                            else:
-                                patch = extract(face, square_bbox(lm[v]), extension=1.3, size=56)[0]
-                                patches[k].append(patch)
-
+                patches = {'beye':[], 'lmouth':[], 'rmouth':[]}
+                for i, (face, lm) in enumerate(zip(faces, lms)):
+                    # Extract patches
                     for k,v in markers.items():
-                        '''print partition+'/'+pose+'/'+subject_k+'/'+segment_k+'/'+k'''
-                        
-                        if partition+'/'+pose+'/'+subject_k+'/'+segment_k+'/'+k in hf:
-                            data = segment_v[k]
-                            data[...] = np.asarray(patches[k])
+                        if np.sum(lm)==0:
+                            patch = np.zeros((56, 56, 3))
                         else:
-                            segment_v.create_dataset(k, data=np.asarray(patches[k]))
+                            patch = extract(face, square_bbox(lm[v]), extension=1.3, size=56)[0]
+                            patches[k].append(patch)
+
+                for k,v in markers.items():
+                    '''print partition+'/'+pose+'/'+subject_k+'/'+segment_k+'/'+k'''
+
+                    print k
+                    print np.asarray(patches[k]).shape
+                    
+                    if partition+'/'+pose+'/'+segment_k+'/'+k in hf:
+                        data = segment_v[k]
+                        data[...] = np.asarray(patches[k])
+                    else:
+                        segment_v.create_dataset(k, data=np.asarray(patches[k]))
+                
 
     def augment(self, n_augm, out_fname, update=False):
         # Define augmenter
@@ -692,15 +693,20 @@ class ReaderPain():
         return [self._vectorize_au(au) for frame in au_seq for au in frame]
 
 class ReaderDisfa():
-    def __init__(self, path):
+    def __init__(self, path, path_out):
         self.path = path
+        self.path_out = path_out
         self.path_aligned_left = path + 'aligned_left/'
         self.path_aligned_right = path + 'aligned_right/'
         self.path_lm = path + 'Landmark_Points/'
         self.path_au = path + 'ActionUnit_Labels/'
         self.path_vidl = path + 'Video_LeftCamera/'
         self.path_vidr = path + 'Video_RightCamera/'
-
+        self.subjects = ['SN001', 'SN005', 'SN009', 'SN013', 'SN021', 'SN026', 'SN030',
+                         'SN002', 'SN006', 'SN010', 'SN016', 'SN023', 'SN027', 'SN031',
+                         'SN003', 'SN007', 'SN011', 'SN017', 'SN024','SN028', 'SN032',
+                         'SN004', 'SN008', 'SN012', 'SN018', 'SN025', 'SN029']
+        
     def read(self, fname, mpath, start, stop, video='left', cores=4):
         if os.path.exists(self.path+fname):
             return cPickle.load(open(self.path+fname, 'rb'))
@@ -763,21 +769,26 @@ class ReaderDisfa():
     def get_subject(self, fname):
         return fname.split('_')[2].split('.')[0]
 
-    def prepare(self, partition, pose, out_fname):
+    def prepare(self, pose, out_fname):
         if pose == 'pose0': in_path = self.path_aligned_left
         elif pose == 'pose1': in_path = self.path_aligned_right
 
-        # Get files
-        test_files = ['disfa_subject_SN030.h5', 'disfa_subject_SN031.h5', 'disfa_subject_SN032.h5']
-        if partition == 'train':
-            files = list(set(sorted([f for f in os.listdir(in_path)])) - set(test_files))
-        elif partition == 'test':
-            files = test_files
-        print 'List of files: {}'.format(files)
+        # Dump data
+        if os.path.isfile(self.path_out+out_fname):
+            file = h5py.File(self.path_out+out_fname, 'r+')
+        else:
+            file = h5py.File(self.path_out+out_fname, 'w')
 
-        # Load data
-        ims, lms, aus, subjects, poses = ([], [], [], [], [])
-        for fname in files:
+        # Get data
+        for subject_idx, subject in enumerate(self.subjects):
+            # Load train data from aligned
+            ims, lms, aus, ints, subjects, tasks, poses = ([], [], [], [], [], [], [])
+
+            # Get file corresponding to subject
+            fname = 'disfa_subject_' + subject + '.h5'
+
+            # Load data
+            ims, lms, aus, subjects, poses = ([], [], [], [], [])
             print 'Loading file {}'.format(fname)
             with h5py.File(in_path + fname, 'r') as hf:
                 ims.append(hf['dt']['images'][()])
@@ -785,34 +796,48 @@ class ReaderDisfa():
                 aus.append(hf['dt']['aus'][()])
                 subjects.append([self.get_subject(fname)]*hf['dt']['images'][()].shape[1])
                 poses.append(['left']*hf['dt']['images'][()].shape[1])
+                
+                (ims, lms, aus, subjects, poses) = (np.squeeze(np.concatenate(ims, axis=1)), np.squeeze(np.concatenate(lms, axis=1)), \
+                                                    np.squeeze(np.concatenate(aus, axis=1)), np.concatenate(subjects),
+                                                    np.concatenate(poses))
+                
+                print 'Total number of samples is {}'.format(ims.shape[0])
 
-        (ims, lms, aus, subjects, poses) = (np.squeeze(np.concatenate(ims, axis=1)), np.squeeze(np.concatenate(lms, axis=1)), \
-                                           np.squeeze(np.concatenate(aus, axis=1)), np.concatenate(subjects),
-                                           np.concatenate(poses))
+                '''Clip labels'''
+                aus = np.where(aus<3, 0, aus)
+                aus = np.where(aus>=3, 1, aus)
+                '''
+                aus[aus<3]=0
+                aus[aus>=3]=1
+                '''
 
-        print 'Total number of samples is {}'.format(ims.shape)
-
-        # Shuffle and split
-        idx = np.random.permutation(ims.shape[0])
-        slice_length = 1024
-        indices = [slice_length*x for x in range(1,int(np.ceil(ims.shape[0]/slice_length+1)))]
-        splits = np.array_split(idx, indices)
-
-        # Dump data
-        if os.path.isfile(self.path+out_fname):
-            file = h5py.File(self.path+out_fname, 'r+')
-        else:
-            file = h5py.File(self.path+out_fname, 'w')
-
-        grp = file.create_group(partition+'/'+pose+'/')
-        for i,x in enumerate(splits):
-            segment = grp.create_group('segment_'+str(i))
-            segment.create_dataset('faces', data=ims[x])
-            segment.create_dataset('lms', data=lms[x])
-            #segment.create_dataset('aus', data=aus[x]) # 2 AUS are missing from SN004 and SN005
-            segment.create_dataset('subjects', data=subjects[x])
-            segment.create_dataset('poses', data=poses[x])
-
+                '''
+                print ims.shape
+                print aus.shape
+                for i in range(11):
+                    print 'au: {}'.format(i)
+                    print 'min:{} max:{}'.format(np.min(aus[:,i]), np.max(aus[:,i]))
+                '''
+                
+                # Shuffle and split
+                idx = np.random.permutation(ims.shape[0])
+                slice_length = 256
+                indices = [slice_length*x for x in range(1,int(np.ceil(ims.shape[0]/slice_length+1)))]
+                splits = np.array_split(idx, indices)
+            
+                for i,x in enumerate(splits):
+                    '''
+                    print 'split: {}'.format(i)
+                    print ims[x].shape
+                    print aus[x].shape
+                    '''
+                    segment = file.create_group(pose+'/'+'subject_'+subject+'/segment_'+str(i))
+                    segment.create_dataset('faces', data=ims[x])
+                    segment.create_dataset('lms', data=lms[x])
+                    segment.create_dataset('aus', data=aus[x])
+                    segment.create_dataset('subjects', data=subjects[x])
+                    segment.create_dataset('poses', data=poses[x])
+                    
     def prepare_patched_face(self, partition, pose, out_fname):
         # From face creates masked version containing fiducial patches
         print 'Prepare patched faces for database {}'.format(out_fname)
@@ -839,34 +864,41 @@ class ReaderDisfa():
                 plt.show()
                 '''
 
-    def prepare_patches(self, partition, pose, out_fname):
+    def prepare_patches(self, pose, out_fname):
         markers = {
             'leye': np.concatenate((np.arange(17,22), np.arange(36,42))),
-            'reye': np.concatenate((np.arange(42,48), np.arange(22,27))),
             'nose': np.arange(27,36),
             'mouth': np.arange(48,68),
-            }
+            'beye': np.asarray([21,22,42,28,39]),
+            'lmouth': np.asarray([36,39,31,48]),
+        }
 
         print 'Prepare patches for database {}'.format(out_fname)
-        with h5py.File(self.path+out_fname, 'r+') as hf:
-            for segment_k,segment_v in hf[partition+'/'+pose+'/'].items():
-                if 'leye' not in segment_v:
-                    print '{} of dataset {}'.format(segment_k, partition+'/'+pose+'/')
+        with h5py.File(self.path_out+out_fname, 'r+') as hf:
+            for subject_k,subject_v in hf[pose+'/'].items():
+                for segment_k,segment_v in hf[pose+'/'+subject_k+'/'].items():
+                    print '{} of dataset {}'.format(segment_k, pose+'/'+subject_k)
                     faces, lms = segment_v['faces'], segment_v['lms']
-
-                    patches = {'leye':[], 'reye':[], 'nose':[], 'mouth':[]}
+                    patches = {'leye':[], 'beye':[], 'mouth':[], 'lmouth':[], 'nose':[]}
+                                                    
                     for i, (face, lm) in enumerate(zip(faces, lms)):
                         # Extract patches
                         for k,v in markers.items():
                             if np.sum(lm)==0:
+                                print 'There where no valid landmarks for this sample'
                                 patch = np.zeros((56, 56, 3))
                             else:
                                 patch = extract(face, square_bbox(lm[v]), extension=1.3, size=56)[0]
+
                             patches[k].append(patch)
 
                     for k,v in markers.items():
+                        '''
+                        print k
+                        print np.asarray(patches[k]).shape
+                        '''
                         segment_v.create_dataset(k, data=np.asarray(patches[k]))
-
+                        
     def _vectorize_au_sequence(self, au_seq):
         return np.asarray(np.transpose(np.vstack([ [int(x[0].split(',')[1]) for x in au] for au in au_seq])),
                           dtype = np.uint8)
@@ -1058,5 +1090,5 @@ def extract_patches(face, geom):
         return patches
 
 if __name__ == '__main__':
-    reader = ReaderFera2017('/data/data1/datasets/fera2017/')
-    reader.augment(n_augm=4, out_fname='bp4d_augm.h5')
+    reader = ReaderDisfa('/data/data1/corneanu/disfa/', '/data/data2/corneanu/disfa/')
+    reader.prepare_patches(pose='pose0', out_fname='disfa_.h5')
