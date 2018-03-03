@@ -305,7 +305,8 @@ class GeneratorBP4D():
                     if not with_labels:
                         batches.append(ims)
                     else:
-                        batches.append((ims, v['aus'][(i)*mini_batch_size:(i+1)*mini_batch_size], v['lms'][(i)*mini_batch_size:(i+1)*mini_batch_size]))
+                        '''batches.append((ims, v['aus'][(i)*mini_batch_size:(i+1)*mini_batch_size], v['lms'][(i)*mini_batch_size:(i+1)*mini_batch_size]))'''
+                        batches.append((ims, v['aus'][(i)*mini_batch_size:(i+1)*mini_batch_size]))
             else:
                 for i in range(0, v['faces'].shape[0]/mini_batch_size):
                     accumulate_batch, valid = [], True
@@ -318,11 +319,14 @@ class GeneratorBP4D():
                         if not with_labels:
                             accumulate_batch.append(ims)
                         else:
-                            accumulate_batch.append((ims, v['aus'][(i)*mini_batch_size:(i+1)*mini_batch_size], v['lms'][(i)*mini_batch_size:(i+1)*mini_batch_size]))
+                            '''accumulate_batch.append((ims, v['aus'][(i)*mini_batch_size:(i+1)*mini_batch_size], v['lms'][(i)*mini_batch_size:(i+1)*mini_batch_size]))'''
+                            accumulate_batch.append((ims, v['aus'][(i)*mini_batch_size:(i+1)*mini_batch_size]))
                     if valid:
                         batches.append(tuple(accumulate_batch))
+                    '''
                     else:
                         print 'Ignore this batch. Patch dimensions do not coincide.'
+                    '''
         return batches
 
     def n_samples_fold(self, fold, augm):
@@ -357,6 +361,7 @@ class GeneratorFera(Generator):
                     yield b
                     
     def n_samples_pose(self, pose='pose6'):
+        print self.path
         n_train, n_test = (0,0)
         with h5py.File(self.path+'fera17.h5', 'r') as hf:
             for k,v in hf['train/'+pose].items():
