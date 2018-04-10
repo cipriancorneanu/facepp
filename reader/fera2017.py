@@ -1,33 +1,54 @@
 __author__ = 'cipriancorneanu'
 
-import os, time
+import os
+import time
 from reader import read_video, read_csv
-from extractor import extract_face
+from extractor import robust_extract_face
 import numpy as np
 import h5py
+from skimage.transform import resize
 
-def prepare(ipath, opath, ofname='fera2017.h5'):
+path_face_extractor = '/home/chip/code/dlib/python_examples/mmod_human_face_detector.dat'
+
+
+def prepare(ipath, opath, subject, pose, ofname='fera2017.h5'):
 
     # Get all video files from input path
-    video_files = sorted([f for f in os.listdir(ipath+'/ims')])
-
-    # Parse video files
-    info =  [f.split('.')[0].split('_') for f in video_files]
+    video_files = sorted([f for f in os.listdir(
+        ipath+'/ims') if subject in f and str(pose)+'.' in f])
+    print video_files
 
     for vidname in video_files:
-        (dataset, partition, subject, task, pose)  = vidname.split('.')[0].split('_')
-        occname = ipath+'occ/' + dataset + '_' + partition + '_' + subject + '_' + task + '.csv'
+        (dataset, partition, subject, task,
+         pose) = vidname.split('.')[0].split('_')
+        occname = ipath+'occ/' + dataset + '_' + \
+            partition + '_' + subject + '_' + task + '.csv'
 
         # Read data
         if os.path.exists(ipath+'ims/'+vidname):
             start_time = time.time()
             ims = read_video(ipath+'ims/'+vidname, colorspace='RGB')
-            print('Reading video file {} in {}s'.format(vidname, (time.time() - start_time)))
+            print('Reading video file {} in {}s'.format(
+                vidname, (time.time() - start_time)))
 
-            aus = read_csv(occname)
-            print('     Extract faces and resize ')
-            faces = np.asarray([extract_face(i,im, ext=1.5, sz=112, verbose=True) for i,im in enumerate(ims)],
-                               dtype=np.uint8)
+            aus = np.asarray(read_csv(occname))[1:, 1:]
+            print('\tExtract faces and resize ')
+            faces = []
+            for i, im in enumerate(ims):
+                start_time = time.time()
+                im = resize(
+                    im, (im.shape[0] / 4, im.shape[1] / 4)).astype(np.uint8)
+
+                faces.append(robust_extract_face(
+                    im, model=path_face_extractor, ext=1.5, sz=112)[1])
+                if i % 50 == 0:
+                    print('\t\t extracting face {} in {}s'.format(
+                        i, time.time()-start_time))
+
+            faces = np.stack(faces, axis=0)
+            print faces.dtype
+            print faces.shape
+            print aus.shape
 
             # Dump data
             if os.path.isfile(opath+ofname):
@@ -35,6 +56,19 @@ def prepare(ipath, opath, ofname='fera2017.h5'):
             else:
                 file = h5py.File(opath+ofname, 'w')
 
-            segment = file.create_group(partition+'/'+subject+'/'+task+'/'+pose)
+            segment = file.create_group(
+                partition+'/'+subject+'/'+task+'/'+pose)
             segment.create_dataset('faces', data=faces)
             segment.create_dataset('aus', data=aus)
+
+
+if __name__ == '__main__':
+    subjects = ['F001', 'F002', 'F003', 'F004', 'F005', 'F006', 'F007', 'F008', 'F009', 'F010',
+                'F011', 'F012', 'F013', 'F014', 'F015', 'F016', 'F017', 'F018', 'F019', 'F020',
+                'F021', 'F022', 'F023', 'M001', 'M002', 'M003', 'M004', 'M005', 'M006', 'M007',
+                'M008', 'M009', 'M010', 'M011', 'M012', 'M013', 'M014', 'M015', 'M016', 'M017', 'M018']
+
+    for subject in subjects:
+        for pose in [1, 2, 3, 4, 5, 6, 7, 8, 9]:
+            prepare('/data/data1/datasets/fera2017/train/',
+                    '/data/data1/datasets/fera2017/', subject, pose, ofname='fera_new.h5')
