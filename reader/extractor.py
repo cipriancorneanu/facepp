@@ -25,8 +25,8 @@ def _crop(im, shape, extension=1.3):
     imc = np.zeros((bbox[2]-bbox[0], bbox[3]-bbox[1],
                     im.shape[2]), dtype=np.uint8)
 
-    imc[0:ibbox[2]-ibbox[0], 0:ibbox[3]-ibbox[1], ...] = im[ibbox[0]
-        :ibbox[2], ibbox[1]:ibbox[3], ...]
+    imc[0:ibbox[2]-ibbox[0], 0:ibbox[3]-ibbox[1], ...] = im[ibbox[0]:ibbox[2],
+                                                            ibbox[1]:ibbox[3], ...]
 
     return (
         imc,
@@ -121,20 +121,25 @@ def extract_face(i, im, ext=1.1, sz=224, verbose=False):
         detected, face = (True, face)
     else:
         if verbose:
-            print '         No face detected'
+            print(
+                '                Sample {} > No face detected. Placing blank image.'.format(i))
 
-        detected, face = (False, np.zeros((sz, sz)))
+        if im.ndim == 2:
+            detected, face = (False, np.zeros((sz, sz)))
+        else:
+            detected, face = (False, np.zeros((sz, sz, im.shape[2])))
 
     return detected, face
 
 
-def robust_extract_face(im, model, ext=1.1, sz=224, verbose=False):
+def robust_extract_face(i, im, model, ext=1.1, sz=224, verbose=False):
     # Extract face from image
     cnn_face_detector = dlib.cnn_face_detection_model_v1(model)
-
     dets = cnn_face_detector(im, 1)
 
-    for i, d in enumerate(dets):
+    if dets:
+        '''Considers just first detection '''
+        d = dets[0]
         geom = np.asarray([[d.rect.top(), d.rect.left(), ], [d.rect.bottom(), d.rect.left()],
                            [d.rect.top(), d.rect.right(), ], [d.rect.bottom(), d.rect.right()]])
 
@@ -142,8 +147,11 @@ def robust_extract_face(im, model, ext=1.1, sz=224, verbose=False):
         detected, face = (True, face)
     else:
         if verbose:
-            print '\t\t\tNo face detected'
+            print('\t\tSample {} > No face detected. Placing blank image.'.format(i))
 
-        detected, face = (False, np.zeros((sz, sz)))
+        if im.ndim == 2:
+            detected, face = (False, np.zeros((sz, sz)))
+        else:
+            detected, face = (False, np.zeros((sz, sz, im.shape[2])))
 
     return detected, face.astype(dtype=np.uint8)
